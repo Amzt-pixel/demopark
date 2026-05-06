@@ -165,27 +165,43 @@
   <div class="options-handle"></div>
   <div class="options-header">
     <span class="options-title">Log Options</span>
-    <button class="options-reset" onclick="showToast('Options reset')">Reset all</button>
+    <button class="options-reset" onclick="resetOptions()">Reset all</button>
   </div>
   <div class="options-body">
-    <div><div class="opt-group-label">Filter by State</div><div class="opt-chips"><div class="opt-chip active" onclick="toggleChip(this)">All</div><div class="opt-chip" onclick="toggleChip(this)">Draft</div><div class="opt-chip" onclick="toggleChip(this)">Dropped</div><div class="opt-chip ant-chip" onclick="toggleChip(this)">Published</div></div></div>
-    <div><div class="opt-group-label">Filter by Operation</div><div class="opt-chips"><div class="opt-chip active" onclick="toggleChip(this)">All</div><div class="opt-chip" onclick="toggleChip(this)">Create</div><div class="opt-chip" onclick="toggleChip(this)">Edit</div><div class="opt-chip" onclick="toggleChip(this)">Update</div><div class="opt-chip" onclick="toggleChip(this)">Rename</div><div class="opt-chip" onclick="toggleChip(this)">Regroup</div><div class="opt-chip" onclick="toggleChip(this)">Trash</div><div class="opt-chip" onclick="toggleChip(this)">Disable</div><div class="opt-chip" onclick="toggleChip(this)">Map</div></div></div>
+    <div><div class="opt-group-label">Filter by State</div><div class="opt-chips" id="filterState">
+        <div class="opt-chip active" data-value="all"       onclick="toggleChip(this)">All</div>
+        <div class="opt-chip"        data-value="draft"     onclick="toggleChip(this)">Draft</div>
+        <div class="opt-chip"        data-value="dropped"   onclick="toggleChip(this)">Dropped</div>
+        <div class="opt-chip ant-chip" data-value="published" onclick="toggleChip(this)">Published</div>
+      </div></div>
+    <div><div class="opt-group-label">Filter by Operation</div><div class="opt-chips" id="filterOp">
+        <div class="opt-chip active" data-value="all"     onclick="toggleChip(this)">All</div>
+        <div class="opt-chip"        data-value="create"  onclick="toggleChip(this)">Create</div>
+        <div class="opt-chip"        data-value="edit"    onclick="toggleChip(this)">Edit</div>
+        <div class="opt-chip"        data-value="update"  onclick="toggleChip(this)">Update</div>
+        <div class="opt-chip"        data-value="rename"  onclick="toggleChip(this)">Rename</div>
+        <div class="opt-chip"        data-value="regroup" onclick="toggleChip(this)">Regroup</div>
+        <div class="opt-chip"        data-value="trash"   onclick="toggleChip(this)">Trash</div>
+        <div class="opt-chip"        data-value="disable" onclick="toggleChip(this)">Disable</div>
+        <div class="opt-chip"        data-value="map"     onclick="toggleChip(this)">Map</div>
+      </div></div>
     <div>
       <div class="opt-group-label">Sort By</div>
-      <div class="sort-option active" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Newest first</span></div>
-      <div class="sort-option" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Oldest first</span></div>
-      <div class="sort-option" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Word A → Z</span></div>
-      <div class="sort-option" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Word Z → A</span></div>
+      <div class="sort-option active" data-sort="newest" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Newest first</span></div>
+      <div class="sort-option" data-sort="oldest" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Oldest first</span></div>
+      <div class="sort-option" data-sort="word_asc" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Word A → Z</span></div>
+      <div class="sort-option" data-sort="word_desc" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Word Z → A</span></div>
     </div>
     <div style="display:flex;gap:8px;padding-top:4px;">
       <button class="btn-secondary" style="font-size:12px;padding:11px;border-radius:10px" onclick="closeOptions()">Close</button>
-      <button class="btn-primary" style="font-size:12px;padding:11px;border-radius:10px;flex:2" onclick="closeOptions();showToast('✅ Options saved','success')">Save</button>
+      <button class="btn-primary" style="font-size:12px;padding:11px;border-radius:10px;flex:2" onclick="applyOptions()">Apply</button>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toastEl"></div>
 
+<script src="../core/state.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
