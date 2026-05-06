@@ -1,103 +1,103 @@
 // ════════════════════════════════════════════
 // support.js — Single tab enforcement
+// Uses BroadcastChannel (no localStorage race)
 // Load FIRST before any other script
 // ════════════════════════════════════════════
 
 'use strict';
 
-const TAB_KEY    = 'dictAdminTabId';
-const TAB_PING   = 'dictAdminTabPing';
-const TAB_CLOSE  = 'dictAdminTabClose';
+const CHANNEL_NAME = 'dict_admin_tab';
+const MY_TAB_ID    = 'tab_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
 
-// Generate a unique ID for this tab
-const MY_TAB_ID  = 'tab_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-
+let _channel      = null;
 let _pingInterval = null;
+let _isActive     = false;
 
-// ── On load ──────────────────────────────
+// ── Init ─────────────────────────────────
 window.addEventListener('load', () => {
-  const existing = localStorage.getItem(TAB_KEY);
-
-  if (existing && existing !== MY_TAB_ID) {
-    // Another tab is already active — show blocked screen
-    showBlockedScreen();
+  if (!('BroadcastChannel' in window)) {
+    console.warn('BroadcastChannel not supported — tab enforcement disabled');
     return;
   }
 
-  // Claim the tab
-  claimTab();
-  startPing();
+  _channel = new BroadcastChannel(CHANNEL_NAME);
+  _channel.onmessage = onMessage;
+
+  // Ask if any other tab is already active
+  _channel.postMessage({ type: 'TAB_QUERY', from: MY_TAB_ID });
+
+  // Give existing tabs 200ms to respond
+  setTimeout(() => {
+    if (!_isActive) {
+      claimTab();
+    }
+  }, 200);
 });
 
-// ── On unload — release the tab ──────────
-window.addEventListener('beforeunload', () => {
-  if (localStorage.getItem(TAB_KEY) === MY_TAB_ID) {
-    localStorage.removeItem(TAB_KEY);
-    // Signal other tabs they can now claim
-    localStorage.setItem(TAB_CLOSE, MY_TAB_ID);
-    localStorage.removeItem(TAB_CLOSE);
-  }
-  clearInterval(_pingInterval);
-});
+// ── Message handler ───────────────────────
+function onMessage(e) {
+  const msg = e.data;
+  if (!msg || msg.from === MY_TAB_ID) return;
 
-// ── Listen for storage events from other tabs ──
-window.addEventListener('storage', e => {
-  // Another tab claimed the slot
-  if (e.key === TAB_KEY && e.newValue && e.newValue !== MY_TAB_ID) {
-    showBlockedScreen();
-    return;
-  }
+  switch (msg.type) {
 
-  // Active tab closed — try to claim
-  if (e.key === TAB_CLOSE) {
-    tryClaimAfterClose();
-    return;
-  }
+    case 'TAB_QUERY':
+      if (_isActive) {
+        _channel.postMessage({ type: 'TAB_ACTIVE', from: MY_TAB_ID });
+      }
+      break;
 
-  // Active tab ping — if we're blocked, update the UI
-  if (e.key === TAB_PING && document.getElementById('blockedScreen')?.classList.contains('active')) {
-    // Still another active tab, stay blocked
+    case 'TAB_ACTIVE':
+      if (!_isActive) {
+        showBlockedScreen();
+      }
+      break;
+
+    case 'TAB_CLOSED':
+      if (!_isActive) {
+        setTimeout(() => {
+          claimTab();
+          const blocked = document.getElementById('blockedScreen');
+          if (blocked?.classList.contains('active')) {
+            location.reload();
+          }
+        }, 100 + Math.random() * 200);
+      }
+      break;
   }
-});
+}
 
 // ── Claim ────────────────────────────────
 function claimTab() {
-  localStorage.setItem(TAB_KEY, MY_TAB_ID);
+  _isActive = true;
+  startPing();
 }
 
-function tryClaimAfterClose() {
-  // Small delay to avoid race between multiple waiting tabs
-  setTimeout(() => {
-    const current = localStorage.getItem(TAB_KEY);
-    // Slot is free — claim it and reload to resume normal flow
-    if (!current) {
-      claimTab();
-      // Remove blocked screen if showing
-      const blocked = document.getElementById('blockedScreen');
-      if (blocked?.classList.contains('active')) {
-        location.reload();
-      }
-    }
-  }, 100 + Math.random() * 200);
-}
-
-// ── Ping — prove this tab is alive ───────
+// ── Ping ─────────────────────────────────
 function startPing() {
   _pingInterval = setInterval(() => {
-    if (localStorage.getItem(TAB_KEY) === MY_TAB_ID) {
-      localStorage.setItem(TAB_PING, MY_TAB_ID + '_' + Date.now());
+    if (_isActive) {
+      _channel.postMessage({ type: 'TAB_ACTIVE', from: MY_TAB_ID });
     }
-  }, 3000);
+  }, 4000);
 }
+
+// ── On close ─────────────────────────────
+window.addEventListener('beforeunload', () => {
+  if (_isActive) {
+    _channel.postMessage({ type: 'TAB_CLOSED', from: MY_TAB_ID });
+  }
+  clearInterval(_pingInterval);
+  _channel?.close();
+});
 
 // ── Blocked screen ───────────────────────
 function showBlockedScreen() {
   clearInterval(_pingInterval);
+  _isActive = false;
 
-  // Hide all screens
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
 
-  // Show blocked screen if it exists, otherwise create it
   let blocked = document.getElementById('blockedScreen');
   if (!blocked) {
     blocked = document.createElement('div');
