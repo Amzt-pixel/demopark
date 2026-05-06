@@ -1,14 +1,15 @@
 // ════════════════════════════════════════════
-// script.js — Commits Panel logic
+// script.js — Commits Panel
+// Depends on: state.js (load first)
 // ════════════════════════════════════════════
 
 'use strict';
 
-const LS_SESSION  = 'dictAdminSession';
-const LS_QUEUE    = 'dictCommitsQueue';
-const LS_REMOVED  = 'dictCommitsRemoved';
-
 let selectedIndices = new Set();
+let currentStateFilter = 'all';
+let currentOpFilter    = 'all';
+let currentSort        = 'newest';
+let _toastTimer;
 
 const OP_ICON = {
   create:  { icon: '＋', bg: 'rgba(212,151,59,.15)'  },
@@ -22,7 +23,9 @@ const OP_ICON = {
   import:  { icon: '📂', bg: 'rgba(212,151,59,.15)'  },
 };
 
-let _toastTimer;
+// ════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════
 function showToast(msg, type = '') {
   const el = document.getElementById('toastEl');
   el.textContent = msg;
@@ -31,42 +34,60 @@ function showToast(msg, type = '') {
   _toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
 }
 
+// ════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════
 window.addEventListener('load', () => {
-  if (!localStorage.getItem(LS_SESSION)) {
-    showScreen('noSessionScreen');
+  if (!isLoggedIn()) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('noSessionScreen').classList.add('active');
     return;
   }
-  showScreen('commitsScreen');
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('commitsScreen').classList.add('active');
   renderLogs();
   renderRemoved();
   updateMenuState();
 });
 
-function showScreen(id) {
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-}
-
+// ════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════
 function switchTab(name, btn) {
   document.querySelectorAll('.crud-tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.crud-panel').forEach(p => p.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
-  clearSelection();
+  clearSelectionAndUpdate();
+  // Re-render active panel in case queue changed
+  if (name === 'logs')    renderLogs();
+  if (name === 'removed') renderRemoved();
 }
 
-function getQueue()     { try { return JSON.parse(localStorage.getItem(LS_QUEUE)   || '[]'); } catch { return []; } }
-function saveQueue(q)   { localStorage.setItem(LS_QUEUE, JSON.stringify(q)); }
-function getRemoved()   { try { return JSON.parse(localStorage.getItem(LS_REMOVED) || '[]'); } catch { return []; } }
-function saveRemoved(r) { localStorage.setItem(LS_REMOVED, JSON.stringify(r)); }
-
+// ════════════════════════════════════════════
+// RENDER LOGS
+// ════════════════════════════════════════════
 function renderLogs() {
-  const q     = getQueue();
+  let q = getQueue();
+
+  // Apply filters
+  if (currentStateFilter !== 'all') q = q.filter(a => a.state === currentStateFilter);
+  if (currentOpFilter    !== 'all') q = q.filter(a => a.op    === currentOpFilter);
+
+  // Apply sort
+  if (currentSort === 'newest')   q = [...q].reverse();
+  if (currentSort === 'oldest')   { /* already chronological */ }
+  if (currentSort === 'word_asc') q = [...q].sort((a, b) => a.word.localeCompare(b.word));
+  if (currentSort === 'word_desc')q = [...q].sort((a, b) => b.word.localeCompare(a.word));
+
   const list  = document.getElementById('commitLogList');
   const empty = document.getElementById('logsEmpty');
   const count = document.getElementById('logsCount');
   list.innerHTML = '';
-  count.textContent = q.length + ' action' + (q.length !== 1 ? 's' : '');
+
+  const total = getQueue().length;
+  count.textContent = total + ' action' + (total !== 1 ? 's' : '');
+
   if (q.length === 0) { empty.classList.remove('hidden'); return; }
   empty.classList.add('hidden');
   q.forEach((action, idx) => list.appendChild(buildLogItem(action, idx)));
@@ -79,18 +100,19 @@ function buildLogItem(action, idx) {
                    : action.state === 'published' ? 'state-published-item' : '';
   const time       = new Date(action.timestamp)
     .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const el = document.createElement('div');
-  el.className   = 'commit-log-item ' + dimClass;
-  el.dataset.idx = idx;
-  el.innerHTML   = `
+  const el         = document.createElement('div');
+  el.className     = 'commit-log-item ' + dimClass +
+    (selectedIndices.has(idx) ? ' selected' : '');
+  el.dataset.idx   = idx;
+  el.innerHTML     = `
     <div class="commit-item-header">
       <div class="commit-op-icon" style="background:${info.bg}">${info.icon}</div>
       <div class="commit-item-body">
         <div class="commit-item-word">${escHtml(action.word)}</div>
-        <div class="commit-item-meta">${cap(action.op)} · ${time}</div>
+        <div class="commit-item-meta">${capFirst(action.op)} · ${time}</div>
       </div>
       <div class="commit-item-right">
-        <span class="commit-state ${stateClass}">${cap(action.state)}</span>
+        <span class="commit-state ${stateClass}">${capFirst(action.state)}</span>
         <div class="commit-check">✓</div>
       </div>
     </div>`;
@@ -98,18 +120,23 @@ function buildLogItem(action, idx) {
   return el;
 }
 
+// ════════════════════════════════════════════
+// RENDER REMOVED
+// ════════════════════════════════════════════
 function renderRemoved() {
   const removed = getRemoved();
   const list    = document.getElementById('removedList');
   const empty   = document.getElementById('removedEmpty');
   list.innerHTML = '';
+
   if (removed.length === 0) { empty.classList.remove('hidden'); return; }
   empty.classList.add('hidden');
+
   removed.forEach(action => {
     const info = OP_ICON[action.op] || OP_ICON.edit;
     const time = new Date(action.timestamp)
       .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const el = document.createElement('div');
+    const el   = document.createElement('div');
     el.className = 'commit-log-item state-dropped-item';
     el.innerHTML = `
       <div class="commit-item-header">
@@ -126,6 +153,9 @@ function renderRemoved() {
   });
 }
 
+// ════════════════════════════════════════════
+// SELECTION
+// ════════════════════════════════════════════
 function toggleSelect(el, idx) {
   if (selectedIndices.has(idx)) { selectedIndices.delete(idx); el.classList.remove('selected'); }
   else { selectedIndices.add(idx); el.classList.add('selected'); }
@@ -133,40 +163,43 @@ function toggleSelect(el, idx) {
   updateMenuState();
 }
 
-function clearSelection() {
+function clearSelectionAndUpdate() {
   selectedIndices.clear();
-  document.querySelectorAll('.commit-log-item.selected').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll('.commit-log-item.selected')
+    .forEach(el => el.classList.remove('selected'));
   updateSelectionLabel();
   updateMenuState();
 }
 
 function updateSelectionLabel() {
   const lbl = document.getElementById('commitsSelectedLabel');
+  if (!lbl) return;
   if (selectedIndices.size > 0) { lbl.textContent = selectedIndices.size + ' selected'; lbl.classList.add('show'); }
   else { lbl.classList.remove('show'); }
 }
 
 function getSelectionMode() {
-  if (selectedIndices.size === 0) return 'none';
-  if (selectedIndices.size === 1) return 'single';
-  return 'multi';
+  return selectedIndices.size === 0 ? 'none' : selectedIndices.size === 1 ? 'single' : 'multi';
 }
 
-const MENU_ITEMS = {
+// ════════════════════════════════════════════
+// MENU — context-sensitive
+// ════════════════════════════════════════════
+const MENU_VISIBILITY = {
+  menuEdit:       ['single'],
+  menuSchedule:   ['single'],
+  menuRename:     ['single'],
   menuPublish:    ['single', 'multi'],
   menuDraft:      ['single', 'multi'],
   menuDrop:       ['single', 'multi'],
   menuDelete:     ['single', 'multi'],
-  menuEdit:       ['single'],
-  menuSchedule:   ['single'],
-  menuRename:     ['single'],
   menuPublishAll: ['none', 'single', 'multi'],
   menuDiscardAll: ['none', 'single', 'multi'],
 };
 
 function updateMenuState() {
   const mode = getSelectionMode();
-  Object.entries(MENU_ITEMS).forEach(([id, allowed]) => {
+  Object.entries(MENU_VISIBILITY).forEach(([id, allowed]) => {
     const el = document.getElementById(id);
     if (!el) return;
     el.style.display = allowed.includes(mode) ? '' : 'none';
@@ -183,41 +216,98 @@ function closeMenu() {
   document.getElementById('commitsMenuSidebar').classList.remove('open');
 }
 
-function openOptions()  { document.getElementById('optionsOverlay').classList.add('open');    document.getElementById('optionsSheet').classList.add('open'); }
-function closeOptions() { document.getElementById('optionsOverlay').classList.remove('open'); document.getElementById('optionsSheet').classList.remove('open'); }
-function toggleChip(c)  { c.classList.toggle('active'); }
-function selectSort(opt) { document.querySelectorAll('.sort-option').forEach(s => s.classList.remove('active')); opt.classList.add('active'); }
+// ════════════════════════════════════════════
+// OPTIONS SHEET
+// ════════════════════════════════════════════
+function openOptions()  {
+  document.getElementById('optionsOverlay').classList.add('open');
+  document.getElementById('optionsSheet').classList.add('open');
+}
+function closeOptions() {
+  document.getElementById('optionsOverlay').classList.remove('open');
+  document.getElementById('optionsSheet').classList.remove('open');
+}
+function toggleChip(c) { c.classList.toggle('active'); }
+function selectSort(opt) {
+  document.querySelectorAll('.sort-option').forEach(s => s.classList.remove('active'));
+  opt.classList.add('active');
+}
 
+function applyOptions() {
+  // State filter — single active chip
+  const stateChip = document.querySelector('#filterState .opt-chip.active');
+  currentStateFilter = stateChip?.dataset.value || 'all';
+
+  // Op filter — single active chip
+  const opChip = document.querySelector('#filterOp .opt-chip.active');
+  currentOpFilter = opChip?.dataset.value || 'all';
+
+  // Sort
+  const sortOpt = document.querySelector('.sort-option.active');
+  currentSort = sortOpt?.dataset.sort || 'newest';
+
+  closeOptions();
+  clearSelectionAndUpdate();
+  renderLogs();
+}
+
+function resetOptions() {
+  currentStateFilter = 'all';
+  currentOpFilter    = 'all';
+  currentSort        = 'newest';
+  document.querySelectorAll('#filterState .opt-chip, #filterOp .opt-chip')
+    .forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#filterState .opt-chip[data-value="all"], #filterOp .opt-chip[data-value="all"]')
+    .forEach(c => c.classList.add('active'));
+  document.querySelectorAll('.sort-option').forEach((s, i) => s.classList.toggle('active', i === 0));
+  clearSelectionAndUpdate();
+  renderLogs();
+  showToast('Options reset');
+}
+
+// ════════════════════════════════════════════
+// QUEUE OPERATIONS
+// ════════════════════════════════════════════
 function applyToSelected(newState) {
-  if (selectedIndices.size === 0) { showToast('Select actions first'); return; }
+  if (!selectedIndices.size) { showToast('Select actions first'); return; }
   const q = getQueue();
   selectedIndices.forEach(idx => { if (q[idx]) q[idx].state = newState; });
-  saveQueue(q); clearSelection(); renderLogs();
+  saveQueue(q);
+  clearSelectionAndUpdate();
+  renderLogs();
   showToast('State → ' + newState, newState === 'published' ? 'success' : '');
 }
 
 function deleteSelected() {
-  if (selectedIndices.size === 0) { showToast('Select actions first'); return; }
+  if (!selectedIndices.size) { showToast('Select actions first'); return; }
   const q = getQueue(), removed = getRemoved();
   [...selectedIndices].sort((a, b) => b - a).forEach(idx => removed.push(...q.splice(idx, 1)));
-  saveQueue(q); saveRemoved(removed); clearSelection(); renderLogs(); renderRemoved();
+  saveQueue(q); saveRemoved(removed);
+  clearSelectionAndUpdate();
+  renderLogs(); renderRemoved();
   showToast('🗑 Moved to Removed', 'error');
 }
 
 function publishAll() {
   const q = getQueue();
   q.forEach(a => { if (a.state !== 'dropped') a.state = 'published'; });
-  saveQueue(q); renderLogs();
+  saveQueue(q);
+  clearSelectionAndUpdate();
+  renderLogs();
   showToast('✅ All non-dropped actions published', 'success');
 }
 
 function discardAll() {
   const q = getQueue(), removed = getRemoved();
   removed.push(...q); saveRemoved(removed); saveQueue([]);
-  clearSelection(); renderLogs(); renderRemoved();
+  clearSelectionAndUpdate();
+  renderLogs(); renderRemoved();
   showToast('🗑 Queue discarded', 'error');
 }
 
+// ════════════════════════════════════════════
+// SEARCH — filters array not DOM
+// ════════════════════════════════════════════
 function filterCommits(q) {
   const lower = q.toLowerCase();
   document.querySelectorAll('.commit-log-item').forEach(item => {
@@ -226,6 +316,3 @@ function filterCommits(q) {
     item.style.display = (w.includes(lower) || m.includes(lower)) ? '' : 'none';
   });
 }
-
-function cap(str)     { return str ? str.charAt(0).toUpperCase() + str.slice(1) : ''; }
-function escHtml(str) { return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
