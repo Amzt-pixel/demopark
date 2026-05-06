@@ -181,10 +181,13 @@ function buildTile(entry) {
   else if (entry.isInactive) tileClass += ' inactive-tile';
   if (selectedUids.has(String(entry.uid))) tileClass += ' selected';
 
-  const metaParts = buildTileMeta(entry);
-  const main      = metaParts.slice(0, 2).join(' | ');
-  const dim       = metaParts.slice(2).join(' | ');
-  const metaStr   = dim ? `${main} <span class="meta-dim">| ${dim}</span>` : main;
+  const meta      = buildTileMeta(entry);
+  const indStr    = meta.indicators
+    .map(ind => ind.active
+      ? ind.key
+      : `<span class="meta-dim">${ind.key}</span>`)
+    .join(' | ');
+  const metaStr   = `${meta.label} | ${indStr}`;
 
   const numidDisplay = entry.numid < 0 ? '−' + Math.abs(entry.numid) : String(entry.numid);
 
