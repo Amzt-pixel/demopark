@@ -199,11 +199,13 @@ function getGroupMembers(numid) {
 // Returns array of parts shown on tile line 2
 
 function buildTileMeta(entry) {
-  const parts = [];
-  if (entry.usageLabel !== 'Common') parts.push(entry.usageLabel);
-  if (entry.hasDef)          parts.push('D');
-  if (entry.hasExample)      parts.push('E');
-  if (entry.hasTranslation)  parts.push('T');
-  if (entry.hasBengaliEx)    parts.push('TE');
-  return parts;
+  return {
+    label:     entry.usageLabel,                    // always shown — Common or otherwise
+    indicators: [
+      { key: 'D',  active: entry.hasDef         },
+      { key: 'E',  active: entry.hasExample      },
+      { key: 'T',  active: entry.hasTranslation  },
+      { key: 'TE', active: entry.hasBengaliEx    },
+    ]
+  };
 }
