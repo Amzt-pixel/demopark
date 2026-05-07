@@ -78,7 +78,7 @@ function initCommits() {
     showBlockedScreen(
       'No Active Session',
       'Commits requires an active CRUD session. Open the CRUD panel first.',
-      'Visit CRUD', () => { window.location.href = '../crud/'; },
+      'Visit CRUD', () => { window.location.href = ('../crud/'); },
       'Close Tab',  () => window.close()
     );
     return;
