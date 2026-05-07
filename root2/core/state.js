@@ -48,12 +48,13 @@ function pushCommit(commit) {
   return { ok: true };
 }
 
-function makeCommit(op, word, numid, extraData = {}) {
+function makeCommit(op, word, numid, e_key, extraData = {}) {
   return {
     id:        'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 5),
     op,
-    word:      word  || '—',
-    numid:     numid != null ? numid : '',
+    word:      word   || '—',
+    numid:     numid  != null ? numid : '',
+    e_key:     e_key  != null ? e_key : null,
     timestamp: new Date().toISOString(),
     state:     'draft',
     ...extraData,
