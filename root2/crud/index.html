@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Dictionary — CRUD</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../core/style.css">
+</head>
+<body>
+
+<!-- ══ LOADING ══ -->
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text" id="loadingText">Loading words…</div>
+</div>
+<!-- ══ BLOCKED SCREEN ══ -->
+<div class="screen" id="blockedScreen">
+  <div class="gate-wrap">
+    <div class="blocked-title" id="blockedTitle"></div>
+    <div class="blocked-message" id="blockedMessage"></div>
+    <div class="blocked-actions">
+      <button class="gate-btn" id="blockedBtn1"></button>
+      <button class="gate-btn" id="blockedBtn2"></button>
+    </div>
+  </div>
+</div>
+<!-- ══ GATE ══ -->
+<div class="screen active" id="gateScreen">
+  <div class="gate-wrap">
+    <div class="gate-eyebrow">Admin Access</div>
+    <div class="gate-title">Dictionary</div>
+    <div class="gate-subtitle">CRUD Panel — restricted access</div>
+    <div class="gate-form">
+      <div class="gate-input-wrap">
+        <input type="password" id="gateInput" class="gate-input" placeholder="Admin password" autocomplete="off"/>
+        <button class="gate-eye" onclick="toggleEye()">👁</button>
+      </div>
+      <button class="gate-btn" onclick="unlockAdmin()">Unlock Admin</button>
+      <div class="gate-error hidden" id="gateError">Incorrect password. Try again.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CRUD SCREEN ══ -->
+<div class="screen" id="crudScreen">
+
+  <nav class="navbar">
+    <div class="navbar-left"><div class="app-title">Admin</div><div class="sync-label" id="syncLabel">Not synced</div></div>
+    <div class="nav-right">
+      <button class="nav-btn" onclick="openOptions()">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="4" cy="12" r="2" fill="currentColor" stroke="none"/></svg>
+        Options
+      </button>
+      <button class="nav-btn" onclick="openMenu()">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Menu
+      </button>
+      <button class="nav-btn commit-btn" onclick="goToCommits()">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>
+        Commits
+        <span class="commit-badge" id="commitBadge" style="display:none">0</span>
+      </button>
+    </div>
+  </nav>
+
+  <div class="crud-tabs">
+    <button class="crud-tab active" onclick="switchTab('view', this)">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="3" y="12" width="18" height="3" rx="1"/><rect x="3" y="19" width="18" height="2" rx="1"/></svg>
+      View
+    </button>
+    <button class="crud-tab" onclick="switchTab('create', this)">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Create
+    </button>
+    <button class="crud-tab" onclick="switchTab('transport', this)">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Transport
+    </button>
+  </div>
+
+  <div class="crud-body">
+
+    <!-- VIEW TAB -->
+    <div class="crud-panel active" id="panel-view">
+      <div class="view-controls">
+        <div class="view-search-wrap">
+          <input class="view-search" type="text" placeholder="Search words…" oninput="filterView(this.value)"/>
+          <svg class="view-search-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+      </div>
+      <div class="view-count-bar">
+        <span class="view-count" id="viewCount">0 words</span>
+        <span class="view-selected-label" id="selectedLabel">0 selected</span>
+      </div>
+      <div id="wordTilesList"></div>
+      <div class="empty-state hidden" id="viewEmpty">
+        <div class="empty-state-icon">🔍</div>
+        <div>No words found</div>
+        <div style="font-size:11px;margin-top:4px">Try a different search or filter</div>
+      </div>
+    </div>
+
+    <!-- CREATE TAB -->
+    <div class="crud-panel" id="panel-create">
+      <div class="form-section">
+        <div class="form-section-header"><span class="form-section-title">Core</span></div>
+        <div class="form-section-body">
+          <div class="form-field"><label class="form-label">Word / Idiom / Phrase</label><input class="form-input" id="createWord" type="text" placeholder="e.g. Proclivity"/></div>
+          <div class="form-row">
+            <div class="form-field"><label class="form-label">Category</label><select class="form-select" id="createCategory"><option value="1">Word</option><option value="2">Idiom / Phrase</option><option value="3">Phrasal Verb / Prep.</option></select></div>
+            <div class="form-field"><label class="form-label">Label</label><select class="form-select" id="createUsage"><option value="0">Common</option><option value="1">Unique</option><option value="2">Specific</option><option value="3">Colloquial</option></select></div>
+          </div>
+          <div class="form-field"><label class="form-label">Grammatical Role</label><input class="form-input" id="createRole" type="text" placeholder="e.g. Common Noun, Transitive Verb…"/></div>
+          <div class="toggle-row">
+            <div><div class="toggle-label">Active</div><div class="toggle-sub">Inactive words are invisible throughout the app</div></div>
+            <label class="toggle"><input type="checkbox" id="createActive" checked/><span class="toggle-slider"></span></label>
+          </div>
+          <div class="toggle-row">
+            <div><div class="toggle-label">Review Note</div><div class="toggle-sub">Flag this entry as needing data improvement</div></div>
+            <label class="toggle"><input type="checkbox" id="createReview"/><span class="toggle-slider"></span></label>
+          </div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-header"><span class="form-section-title">ID &amp; Group</span></div>
+        <div class="form-section-body">
+          <div class="form-field">
+            <label class="form-label">NumId</label>
+            <input class="form-input" id="createNumid" type="number" step="0.1" placeholder="e.g. 5.0 or −5.0"/>
+            <div class="numid-hint">Positive = synonym group · Negative = antonym · Decimal = related · 0 = invalid / limbo</div>
+          </div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-header"><span class="form-section-title">Definitions</span></div>
+        <div class="form-section-body">
+          <div class="form-field"><label class="form-label">Definition 1</label><textarea class="form-input" id="createDef1" placeholder="Primary definition…"></textarea></div>
+          <div class="form-field"><label class="form-label">Definition 2 <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label><textarea class="form-input" id="createDef2" placeholder="Secondary definition…"></textarea></div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-header"><span class="form-section-title">Examples</span><span style="font-size:11px;color:rgba(255,255,255,.4)">up to 5</span></div>
+        <div class="form-section-body">
+          <div class="examples-list" id="examplesList">
+            <div class="example-row"><textarea class="form-input" placeholder="Example sentence 1…"></textarea></div>
+          </div>
+          <button class="add-more-btn" onclick="addExample()">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add example
+          </button>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-header"><span class="form-section-title">Bengali</span><span style="font-size:11px;color:rgba(255,255,255,.4)">optional</span></div>
+        <div class="form-section-body">
+          <div class="form-field"><label class="form-label">Bengali Definition</label><textarea class="form-input" id="createBengaliDef" placeholder="বাংলা সংজ্ঞা…"></textarea></div>
+          <div class="examples-list" id="bengaliExList">
+            <div class="example-row"><textarea class="form-input" placeholder="Bengali example 1…"></textarea></div>
+          </div>
+          <button class="add-more-btn" onclick="addBengaliExample()">
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Bengali example
+          </button>
+        </div>
+      </div>
+      <div class="comment-box" style="margin-bottom:14px">
+        <div class="comment-box-label">📌 Admin Comment</div>
+        <textarea id="createComment" placeholder="Internal note — only visible to admin…"></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn-secondary" onclick="resetForm()">Reset</button>
+        <button class="btn-primary" onclick="queueCreate()">Queue Word</button>
+      </div>
+    </div>
+
+    <!-- TRANSPORT TAB -->
+    <div class="crud-panel" id="panel-transport">
+      <div class="form-section">
+        <div class="form-section-header"><span class="form-section-title">Import Words</span></div>
+        <div class="form-section-body" style="padding-bottom:0">
+          <div class="import-drop-zone" id="dropZone" onclick="simulateUpload()" style="margin-bottom:0;border-radius:9px;">
+            <div class="import-drop-icon">📂</div>
+            <div class="import-drop-title">Drop CSV or JSON here</div>
+            <div class="import-drop-sub">or <span>browse file</span></div>
+          </div>
+        </div>
+        <div id="importPreviewWrap" style="display:none">
+          <div class="import-summary" style="margin:12px 15px;border-radius:9px;">
+            <div class="summary-stat"><div class="summary-num">42</div><div class="summary-label">To Add</div></div>
+            <div class="summary-stat"><div class="summary-num" style="color:var(--syn)">3</div><div class="summary-label">Skipped</div></div>
+            <div class="summary-stat"><div class="summary-num" style="color:var(--def)">0</div><div class="summary-label">Errors</div></div>
+          </div>
+          <div class="import-table-wrap" style="margin:0 0 1px">
+            <table class="import-table">
+              <thead><tr><th>Word</th><th>NumId</th><th>Definition</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr><td class="td-word">Equivocate</td><td class="td-id">77.0</td><td>To use ambiguous…</td><td><span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--syn-bg);color:var(--syn)">New</span></td></tr>
+                <tr class="td-skip"><td class="td-word">Abase</td><td class="td-id">12.0</td><td>To lower in rank…</td><td><span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--surface2);color:var(--text-secondary)">Skip</span></td></tr>
+                <tr><td class="td-word">Loquacious</td><td class="td-id">99.0</td><td>Tending to talk…</td><td><span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--syn-bg);color:var(--syn)">New</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div style="padding:12px 15px;display:flex;gap:8px">
+            <button class="btn-secondary" style="font-size:13px;padding:10px" onclick="resetImport()">Cancel</button>
+            <button class="btn-primary" style="font-size:13px;padding:10px" onclick="resetImport()">Queue 42 Words</button>
+          </div>
+        </div>
+      </div>
+      <div class="export-section">
+        <div class="export-header"><span class="export-title">Export Words</span></div>
+        <div class="export-body">
+          <div class="form-field">
+            <label class="form-label">Filter (optional)</label>
+            <select class="form-select"><option>All words</option><option>Category: Words only</option><option>Category: Idioms only</option><option>Label: Unique</option><option>Valid words only</option></select>
+          </div>
+          <div>
+            <div class="opt-group-label" style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--text-secondary);margin-bottom:7px;">Format</div>
+            <div class="export-format-row">
+              <div class="format-chip active" onclick="selectFormat(this)">CSV</div>
+              <div class="format-chip" onclick="selectFormat(this)">JSON</div>
+            </div>
+          </div>
+          <button class="btn-primary" style="font-size:13px" onclick="showToast('📥 Export ready','success')">Export Words</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ HOLD POPUP ══ -->
+<div class="hold-overlay" id="holdOverlay" onclick="closeHoldPopup()">
+  <div class="hold-popup" onclick="event.stopPropagation()">
+    <div class="hold-popup-handle"></div>
+    <div class="hold-popup-word" id="popupWord">Proclivity</div>
+    <div class="hold-popup-meta" id="popupMeta">Word · NumId 1.0</div>
+    <div class="hold-popup-def" id="popupDef">A tendency to choose or do something regularly.</div>
+    <div class="hold-popup-syns"><span class="hold-popup-syn">Propensity</span><span class="hold-popup-syn">Tendency</span></div>
+    <div class="hold-popup-actions">
+      <button class="hold-popup-btn hold-popup-close" onclick="closeHoldPopup()">Close</button>
+      <button class="hold-popup-btn hold-popup-edit" onclick="closeHoldPopup();openOpModal('edit')">Edit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CRUD MENU ══ -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMenu()"></div>
+<div class="sidebar" id="crudMenuSidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-title">Operations</span>
+    <button class="sidebar-close" onclick="closeMenu()">✕</button>
+  </div>
+  <div class="sidebar-section-label">Word Operations</div>
+  <button class="menu-item" id="menuAdd" onclick="closeMenu();openOpModal('add')">
+    <div class="menu-icon mi-add"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Add</div><div class="menu-desc">New word in same or opposite group</div></div>
+  </button>
+  <button class="menu-item" id="menuEdit" onclick="closeMenu();openOpModal('edit')">
+    <div class="menu-icon mi-edit"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Edit</div><div class="menu-desc">Full form — all fields</div></div>
+  </button>
+  <button class="menu-item" id="menuUpdate" onclick="closeMenu();openOpModal('update')">
+    <div class="menu-icon mi-update"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Update</div><div class="menu-desc">Non-essential fields only</div></div>
+  </button>
+  <button class="menu-item" id="menuRename" onclick="closeMenu();openOpModal('rename')">
+    <div class="menu-icon mi-rename"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Rename</div><div class="menu-desc">Change the word string</div></div>
+  </button>
+  <button class="menu-item" id="menuRegroup" onclick="closeMenu();openOpModal('regroup')">
+    <div class="menu-icon mi-regroup"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Regroup</div><div class="menu-desc">Change NumId — move word group</div></div>
+  </button>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section-label">References</div>
+  <button class="menu-item" id="menuMapBtn" onclick="closeMenu();openMapPanel()">
+    <div class="menu-icon mi-map"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Map</div><div class="menu-desc" id="mapMenuDesc">Select a word first</div></div>
+  </button>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section-label">Status</div>
+  <button class="menu-item" id="menuDisable" onclick="closeMenu();openOpModal('disable')">
+    <div class="menu-icon mi-disable"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Disable</div><div class="menu-desc">Toggle active — hide word everywhere</div></div>
+  </button>
+  <button class="menu-item" id="menuTrash" onclick="closeMenu();openOpModal('trash')">
+    <div class="menu-icon mi-trash"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Trash</div><div class="menu-desc">Set NumId → 0, word becomes invalid</div></div>
+  </button>
+</div>
+
+<!-- ══ OPTIONS SHEET ══ -->
+<div class="options-overlay" id="optionsOverlay" onclick="closeOptions()"></div>
+<div class="options-sheet" id="optionsSheet">
+  <div class="options-handle"></div>
+  <div class="options-header">
+    <span class="options-title">View Options</span>
+    <button class="options-reset" onclick="resetOptions()">Reset all</button>
+  </div>
+  <div class="options-body">
+    <div><div class="opt-group-label">Category</div><div class="opt-chips" id="filterCategory">
+        <div class="opt-chip active" data-value="all"     onclick="toggleChip(this)">All</div>
+        <div class="opt-chip"        data-value="word"    onclick="toggleChip(this)">Words</div>
+        <div class="opt-chip"        data-value="idiom"   onclick="toggleChip(this)">Idioms</div>
+        <div class="opt-chip"        data-value="phrasal" onclick="toggleChip(this)">Phrasal</div>
+      </div></div>
+    <div><div class="opt-group-label">Label</div><div class="opt-chips" id="filterUsage">
+        <div class="opt-chip active" data-value="all"        onclick="toggleChip(this)">All</div>
+        <div class="opt-chip"        data-value="common"     onclick="toggleChip(this)">Common</div>
+        <div class="opt-chip"        data-value="unique"     onclick="toggleChip(this)">Unique</div>
+        <div class="opt-chip"        data-value="specific"   onclick="toggleChip(this)">Specific</div>
+        <div class="opt-chip"        data-value="colloquial" onclick="toggleChip(this)">Colloquial</div>
+      </div></div>
+    <div><div class="opt-group-label">Conditions</div><div class="opt-chips" id="filterConditions">
+        <div class="opt-chip"             data-cond="onlyDefs"       onclick="toggleChip(this)">Only Definitions</div>
+        <div class="opt-chip ant-chip"    data-cond="isolated"       onclick="toggleChip(this)">Isolated</div>
+        <div class="opt-chip"             data-cond="reviewNote"     onclick="toggleChip(this)">Review Note</div>
+        <div class="opt-chip danger-chip" data-cond="invalid"        onclick="toggleChip(this)">Invalid</div>
+        <div class="opt-chip danger-chip" data-cond="inactive"       onclick="toggleChip(this)">Inactive</div>
+        <div class="opt-chip"             data-cond="hasTranslation" onclick="toggleChip(this)">Has Translation</div>
+        <div class="opt-chip ant-chip"    data-cond="noExamples"     onclick="toggleChip(this)">No Examples</div>
+      </div></div>
+    <div><div class="opt-group-label">NumId Range</div><div class="form-row" style="gap:8px"><input class="form-input" id="filterNumidMin" type="number" placeholder="Min" style="font-size:12px;padding:8px 11px"/><input class="form-input" id="filterNumidMax" type="number" placeholder="Max" style="font-size:12px;padding:8px 11px"/></div></div>
+    <div>
+      <div class="opt-group-label">Sort By</div>
+      <div class="sort-option active" data-sort="word_asc" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Word A → Z</span></div>
+      <div class="sort-option" data-sort="word_desc" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Word Z → A</span></div>
+      <div class="sort-option" data-sort="numid_asc" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">NumId Low → High</span></div>
+      <div class="sort-option" data-sort="numid_desc" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">NumId High → Low</span></div>
+      <div class="sort-option" data-sort="date_newest" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Creation Date (newest)</span></div>
+      <div class="sort-option" data-sort="date_oldest" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Creation Date (oldest)</span></div>
+    </div>
+    <div style="display:flex;gap:8px;padding-top:4px;">
+      <button class="btn-secondary" style="font-size:12px;padding:11px;border-radius:10px" onclick="resetOptions()">Reset</button>
+      <button class="btn-primary" style="font-size:12px;padding:11px;border-radius:10px;flex:2" onclick="applyOptions()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ OPERATION MODALS ══ -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal"><div class="modal-handle"></div><span class="op-badge op-edit">✏ Edit</span><div class="modal-title" id="editModalTitle"></div><div class="modal-subtitle">Full edit — all fields queued to Commits</div>
+  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Word</label><input class="form-input" id="editWord" type="text" value=""/></div>
+  <div class="form-row" style="margin-bottom:11px"><div class="form-field"><label class="form-label">Category</label><select class="form-select"><option>Word</option><option>Idiom / Phrase</option><option>Phrasal Verb / Prep.</option></select></div><div class="form-field"><label class="form-label">Label</label><select class="form-select"><option>Common</option><option>Unique</option><option>Specific</option><option>Colloquial</option></select></div></div>
+  <div class="form-field" style="margin-bottom:11px"><label class="form-label">NumId</label><input class="form-input" id="editNumid" type="number" value=""/></div>
+  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Grammatical Role</label><input class="form-input" id="editRole" type="text" value=""/></div>
+  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Definition 1</label><textarea class="form-input" id="editDef1"></textarea></div>
+  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Definition 2</label><textarea class="form-input" placeholder="Optional…"></textarea></div>
+  <div class="toggle-row"><div><div class="toggle-label">Active</div></div><label class="toggle"><input type="checkbox" id="editActive" checked/><span class="toggle-slider"></span></label></div>
+  <div class="toggle-row"><div><div class="toggle-label">Review Note</div></div><label class="toggle"><input type="checkbox" id="editReview"/><span class="toggle-slider"></span></label></div>
+  <div class="comment-box"><div class="comment-box-label">📌 Admin Comment</div><textarea id="editComment" placeholder="Internal note…"></textarea></div>
+  <div class="modal-btn-row"><button class="btn-secondary" onclick="closeModal('editModal')">Cancel</button><button class="btn-primary" onclick="queueFromModal('edit','editModal')">Queue Edit</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="updateModal">
+  <div class="modal"><div class="modal-handle"></div><span class="op-badge op-update">📝 Update</span><div class="modal-title" id="updateModalTitle"></div><div class="modal-subtitle">Non-essential fields only</div>
+  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Label</label><select class="form-select" id="updateUsage"><option value="0">Common</option><option value="1">Unique</option><option value="2">Specific</option><option value="3">Colloquial</option></select></div>
+  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Grammatical Role</label><input class="form-input" id="updateRole" type="text" value=""/></div>
+  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Definition 1</label><textarea class="form-input" id="updateDef1"></textarea></div>
+  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Definition 2</label><textarea class="form-input" id="updateDef2" placeholder="Optional…"></textarea></div>
+  <div class="comment-box"><div class="comment-box-label">📌 Admin Comment</div><textarea id="updateComment" placeholder="Internal note…"></textarea></div>
+  <div class="modal-btn-row"><button class="btn-secondary" onclick="closeModal('updateModal')">Cancel</button><button class="btn-primary" onclick="queueFromModal('update','updateModal')">Queue Update</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="renameModal">
+  <div class="modal"><div class="modal-handle"></div><span class="op-badge op-rename">Aa Rename</span><div class="modal-title">Rename Word</div><div class="modal-subtitle" id="renameCurrentLabel">Current: —</div>
+  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Category</label><select class="form-select" disabled><option>Word</option></select></div>
+  <div class="form-field" style="margin-bottom:11px"><label class="form-label">New Word String</label><input class="form-input" id="renameWord" type="text" value=""/></div>
+  <div class="comment-box"><div class="comment-box-label">📌 Admin Comment</div><textarea id="renameComment" placeholder="Internal note…"></textarea></div>
+  <div class="modal-btn-row"><button class="btn-secondary" onclick="closeModal('renameModal')">Cancel</button><button class="btn-primary" onclick="queueFromModal('rename','renameModal')">Queue Rename</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="regroupModal">
+  <div class="modal"><div class="modal-handle"></div><span class="op-badge op-regroup">⬡ Regroup</span><div class="modal-title">Regroup Word</div><div class="modal-subtitle" id="regroupCurrentLabel">Current: —</div>
+  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Category</label><select class="form-select" disabled><option>Word</option></select></div>
+  <div class="form-field" style="margin-bottom:4px"><label class="form-label">New NumId</label><input class="form-input" id="regroupNumid" type="number" step="0.1" placeholder="e.g. 12.0"/><div class="numid-hint" id="regroupHint">Current: — · Positive = synonym · Negative = antonym</div></div>
+  <div class="comment-box" style="margin-top:12px"><div class="comment-box-label">📌 Admin Comment</div><textarea id="regroupComment" placeholder="Internal note…"></textarea></div>
+  <div class="modal-btn-row"><button class="btn-secondary" onclick="closeModal('regroupModal')">Cancel</button><button class="btn-primary" onclick="queueFromModal('regroup','regroupModal')">Queue Regroup</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="addModal">
+  <div class="modal"><div class="modal-handle"></div><span class="op-badge op-add">＋ Add</span><div class="modal-title">Add to Group</div><div class="modal-subtitle" id="addGroupLabel">No word selected — standalone</div>
+  <div class="form-field" style="margin-bottom:11px"><label class="form-label">New Word</label><input class="form-input" id="addWord" type="text" placeholder="Word string…"/></div>
+  <div class="form-row" style="margin-bottom:11px"><div class="form-field"><label class="form-label">Add as</label><select class="form-select" id="addAs"><option value="syn">Synonym</option><option value="ant">Antonym</option></select></div><div class="form-field"><label class="form-label">Category</label><select class="form-select" id="addCategory"><option value="1">Word</option><option value="2">Idiom / Phrase</option><option value="3">Phrasal Verb / Prep.</option></select></div></div>
+  <div class="comment-box"><div class="comment-box-label">📌 Admin Comment</div><textarea id="addComment" placeholder="Internal note…"></textarea></div>
+  <div class="modal-btn-row"><button class="btn-secondary" onclick="closeModal('addModal')">Cancel</button><button class="btn-primary" onclick="queueFromModal('add','addModal')">Queue Add</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="trashModal">
+  <div class="modal"><div class="modal-handle"></div><span class="op-badge op-trash">🗑 Trash</span><div class="modal-title" id="trashModalTitle">Trash Word</div><div class="modal-subtitle" style="color:var(--danger)">Sets NumId → 0. Word becomes invalid.</div>
+  <div style="background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:9px;padding:11px 13px;margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--danger);margin-bottom:4px">Auto-comment:</div><div style="font-size:12px;font-family:monospace;color:var(--text)" id="trashAutoComment">—</div></div>
+  <div class="comment-box"><div class="comment-box-label">📌 Admin Comment</div><textarea id="trashComment" placeholder="Optional additional note…"></textarea></div>
+  <div class="modal-btn-row"><button class="btn-secondary" onclick="closeModal('trashModal')">Cancel</button><button class="btn-danger" style="flex:2" onclick="queueFromModal('trash','trashModal')">Queue Trash</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="disableModal">
+  <div class="modal"><div class="modal-handle"></div><span class="op-badge op-disable">⊘ Disable</span><div class="modal-title" id="disableModalTitle">Toggle Active</div><div class="modal-subtitle" id="disableCurrentStatus">Word stays intact but hidden everywhere</div>
+  <div class="toggle-row" style="padding:13px 0"><div><div class="toggle-label">Active</div><div class="toggle-sub" id="disableCurrentStatus">Currently active — visible in app</div></div><label class="toggle"><input type="checkbox" id="disableActive" checked/><span class="toggle-slider"></span></label></div>
+  <div class="comment-box"><div class="comment-box-label">📌 Admin Comment</div><textarea id="disableComment" placeholder="Internal note…"></textarea></div>
+  <div class="modal-btn-row"><button class="btn-secondary" onclick="closeModal('disableModal')">Cancel</button><button class="btn-primary" onclick="queueFromModal('disable','disableModal')">Queue Change</button></div>
+  </div>
+</div>
+
+<!-- ══ MAP OVERLAY ══ -->
+<div class="map-overlay" id="mapOverlay" style="display:none">
+  <nav class="navbar">
+    <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
+      <button class="nav-back" onclick="closeMapPanel()">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div style="font-family:'Lora',serif;font-size:13px;font-weight:700;color:var(--accent-light);letter-spacing:.3px;">Map · References</div>
+    </div>
+    <div class="nav-right">
+      <button class="nav-btn" onclick="openMapMenu()">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Menu
+      </button>
+    </div>
+  </nav>
+
+  <div class="map-tabs">
+    <button class="map-tab active" onclick="switchMapTab('list',this)">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      List
+    </button>
+    <button class="map-tab" onclick="switchMapTab('change',this)">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      Change
+    </button>
+    <button class="map-tab" onclick="switchMapTab('ie',this)">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Import / Export
+    </button>
+  </div>
+
+  <div class="map-body">
+
+    <div class="map-panel active" id="mpanel-list">
+      <div class="base-word-card">
+        <button class="base-card-edit" onclick="showToast('Edit base word…')">🔧</button>
+        <div class="base-card-eyebrow">Base Word</div>
+        <div class="base-card-word" id="mapBaseWord">—</div>
+        <div class="base-card-meta" id="mapBaseMeta">—</div>
+        <div class="base-card-def" id="mapBaseDef">—</div>
+      </div>
+      <div class="ref-count-bar">
+        <span class="ref-count" id="mapRefCount">0 references</span>
+        <span class="ref-selected-label" id="mapRefSelectedLabel">0 selected</span>
+      </div>
+      <div class="ref-list" id="mapRefList">
+        <div class="ref-row-wrap" id="mwrap-0">
+          <div class="ref-row" id="mrow-0">
+            <div class="ref-check" onclick="toggleMapRefSelect(0)">✓</div>
+            <div class="ref-row-left" onclick="toggleMapRefSelect(0)">
+              <div class="ref-word-line"><span class="ref-word">Tendency</span><span class="ref-numid">· 1.0</span></div>
+              <div class="ref-meta"><span class="ref-type-badge">coin</span><span class="ref-sep">·</span><span class="ref-conf high">High confidence</span></div>
+            </div>
+            <div class="ref-row-actions">
+              <div class="ref-del-btn" onclick="deleteMapRef(0)"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></div>
+              <div class="ref-icon-btn" onclick="toggleMapCard(0)">🔧</div>
+            </div>
+          </div>
+        </div>
+        <div class="ref-row-wrap" id="mwrap-1">
+          <div class="ref-row" id="mrow-1">
+            <div class="ref-check" onclick="toggleMapRefSelect(1)">✓</div>
+            <div class="ref-row-left" onclick="toggleMapRefSelect(1)">
+              <div class="ref-word-line"><span class="ref-word">Disposition</span><span class="ref-numid">· 2.0</span></div>
+              <div class="ref-meta"><span class="ref-type-badge" style="background:var(--def-bg);color:var(--def)">infr</span><span class="ref-sep">·</span><span class="ref-conf">Void confidence</span></div>
+            </div>
+            <div class="ref-row-actions">
+              <div class="ref-del-btn" onclick="deleteMapRef(1)"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></div>
+              <div class="ref-icon-btn" onclick="toggleMapCard(1)">🔧</div>
+            </div>
+          </div>
+        </div>
+        <div class="ref-row-wrap" id="mwrap-new">
+          <div class="ref-row empty-row" id="mrow-new" onclick="toggleMapCard('new')">
+            <div class="empty-row-icon">＋</div>
+            <span class="empty-row-label">Add new reference</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="map-panel" id="mpanel-change">
+      <div class="ref-count-bar"><span class="ref-count">1 change this session</span></div>
+      <div class="change-row">
+        <div class="change-badge modified">Modified</div>
+        <div class="change-body">
+          <div class="change-word">Tendency <span class="change-numid">· 1.0</span></div>
+          <div class="change-detail"><span class="change-prev">infr · null</span><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg><span class="change-next">coin · High</span></div>
+        </div>
+        <div class="change-revert" onclick="showToast('↩ Reverted','warn')">↩</div>
+      </div>
+      <div class="empty-state hidden" id="mapChangeEmpty">
+        <div class="empty-state-icon">✏️</div>
+        <div>No changes yet</div>
+        <div style="font-size:11px;margin-top:4px;color:var(--text-secondary)">Changes you make in List will appear here</div>
+      </div>
+    </div>
+
+    <div class="map-panel" id="mpanel-ie">
+      <div class="ie-section">
+        <div class="ie-header"><span class="ie-title">Export References</span></div>
+        <div class="ie-body">
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.5">Exports current refword changes as a matrix JSON.</div>
+          <div class="matrix-preview">
+            <table class="matrix-table">
+              <thead><tr><th>ref_word</th><th>ref_numid</th><th>p_ex</th><th>p_str</th><th>p_con</th><th>n_ex</th><th>n_str</th><th>n_con</th></tr></thead>
+              <tbody><tr><td class="td-word">Tendency</td><td class="td-code">1.0</td><td class="td-exists-1">1</td><td class="td-code">infr</td><td class="td-null">null</td><td class="td-exists-0">0</td><td class="td-null">null</td><td class="td-null">null</td></tr></tbody>
+            </table>
+          </div>
+          <button class="btn-primary" onclick="showToast('📥 Matrix exported','success')">Export Matrix JSON</button>
+        </div>
+      </div>
+      <div class="ie-section">
+        <div class="ie-header"><span class="ie-title">Import References</span></div>
+        <div class="ie-body">
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.5">Import a matrix JSON file. Validated against current DB state before applying.</div>
+          <div class="ie-drop-zone" onclick="showToast('↪ File parsed — validating…','success')">
+            <div class="ie-drop-icon">📄</div>
+            <div class="ie-drop-title" style="font-size:13px">Drop matrix JSON here</div>
+            <div class="ie-drop-sub">or <span>browse file</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Map Menu -->
+<div class="sidebar" id="mapMenuSidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-title">Map Operations</span>
+    <button class="sidebar-close" onclick="closeMapMenu()">✕</button>
+  </div>
+  <div class="sidebar-section-label">Actions</div>
+  <button class="menu-item" onclick="closeMapMenu();mapSaveAll()">
+    <div class="menu-icon" style="background:rgba(42,140,126,.2);color:var(--ant-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <div><div class="menu-label">Save All</div><div class="menu-desc">Queue all changes to Commits</div></div>
+  </button>
+  <button class="menu-item" onclick="closeMapMenu();showToast('↻ Syncing with DB…')">
+    <div class="menu-icon" style="background:rgba(91,155,213,.2);color:var(--def-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></div>
+    <div><div class="menu-label">Sync</div><div class="menu-desc">Refresh refwords from DB</div></div>
+  </button>
+  <button class="menu-item" onclick="closeMapMenu();deleteMapSelected()">
+    <div class="menu-icon" style="background:rgba(198,40,40,.2);color:#ef9a9a"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg></div>
+    <div><div class="menu-label">Delete</div><div class="menu-desc">Delete selected references</div></div>
+  </button>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section-label">Lookup</div>
+  <button class="menu-item" onclick="toggleMapLookup()">
+    <div class="menu-icon" style="background:rgba(212,151,59,.15);color:var(--accent-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+    <div><div class="menu-label">Lookup</div><div class="menu-desc">Show selected word details here</div></div>
+  </button>
+  <div class="lookup-panel" id="mapLookupPanel">
+    <div class="lookup-word" id="mapLookupWord">—</div>
+    <div class="lookup-meta" id="mapLookupMeta">—</div>
+    <div class="lookup-def" id="mapLookupDef">—</div>
+  </div>
+</div>
+
+<!-- Map card template -->
+<template id="mapCardTemplate">
+  <div class="ref-card" id="mcard-ID">
+    <div class="binding-tier" id="mtier-ID">
+      <span class="tier-dot isolated"></span>
+      <span class="tier-label" id="mtier-label-ID">Isolated word</span>
+    </div>
+    <div class="ref-card-section">
+      <div class="ref-card-label">Referred Word <span class="req-star">*</span></div>
+      <div class="ref-search-field" style="margin-bottom:7px">
+        <span class="ref-search-input-label">Word string</span>
+        <input class="ref-search-input ref-word-input" type="text" placeholder="Type any word…" data-field="word" oninput="onMapFieldInput(this,'ID')"/>
+        <div class="ref-dropdown" id="mdrop-word-ID"></div>
+      </div>
+      <div class="ref-search-row">
+        <div class="ref-search-field" style="flex:1">
+          <span class="ref-search-input-label">NumId <span style="opacity:.5;font-weight:400">(opt)</span></span>
+          <input class="ref-search-input ref-numid-input" type="number" step="0.1" placeholder="e.g. 1.0" data-field="numid" oninput="onMapFieldInput(this,'ID')"/>
+          <div class="ref-dropdown" id="mdrop-numid-ID"></div>
+        </div>
+        <div class="ref-search-field" style="flex:1">
+          <span class="ref-search-input-label">UID <span style="opacity:.5;font-weight:400">(opt)</span></span>
+          <input class="ref-search-input ref-uid-input" type="number" placeholder="e.g. 142" data-field="uid" oninput="onMapFieldInput(this,'ID')"/>
+          <div class="ref-dropdown" id="mdrop-uid-ID"></div>
+        </div>
+      </div>
+    </div>
+    <div class="ref-card-section">
+      <div class="ref-card-label">Reference Details</div>
+      <div class="ref-selects-row">
+        <div class="ref-select-wrap">
+          <span class="ref-search-input-label">Type</span>
+          <select class="ref-select">
+            <option value="">— none —</option>
+            <option value="infr">Inference (infr)</option>
+            <option value="itfr">Interference (itfr)</option>
+            <option value="revr">Reverence (revr)</option>
+            <option value="defr">Deference (defr)</option>
+            <option value="prfr">Preference (prfr)</option>
+            <option value="inhr">Inherence (inhr)</option>
+            <option value="cohr">Coherence (cohr)</option>
+            <option value="difr">Difference (difr)</option>
+            <option value="adhr">Adherence (adhr)</option>
+            <option value="cmfr">Circumference (cmfr)</option>
+            <option value="dpnc">Dependence (dpnc)</option>
+            <option value="crpc">Correspondence (crpc)</option>
+            <option value="cndc">Coincidence (cndc)</option>
+            <option value="dvgc">Divergence (dvgc)</option>
+            <option value="qntc">Quintessence (qntc)</option>
+            <option value="aqnc">Acquaintance (aqnc)</option>
+            <option value="emnc">Eminence (emnc)</option>
+            <option value="vlnc">Valence (vlnc)</option>
+          </select>
+        </div>
+        <div class="ref-select-wrap">
+          <span class="ref-search-input-label">Confidence</span>
+          <select class="ref-select">
+            <option value="null">— void —</option>
+            <option value="1">High (1)</option>
+            <option value="0">Low (0)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="ref-card-actions">
+      <button class="ref-card-btn ref-card-clear" onclick="clearMapCard('ID')">Clear</button>
+      <button class="ref-card-btn ref-card-save" onclick="saveMapCard('ID')">Save</button>
+    </div>
+  </div>
+</template>
+
+<div class="toast" id="toastEl"></div>
+
+<script src="../core/state.js"></script>
+<script src="../core/support.js"></script>
+<script src="../core/crudgate.js"></script>
+<script src="../core/data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
