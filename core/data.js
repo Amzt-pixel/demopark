@@ -6,7 +6,7 @@
 'use strict';
 
 // ── Config ─────────────────────────────────
-const CSV_URL = 'https://raw.githubusercontent.com/Amzt-pixel/vocabdb/refs/heads/main/samplefdata2.csv';
+const CSV_URL = 'https://raw.githubusercontent.com/Amzt-pixel/vocabdb/refs/heads/main/synthetic_entries_320_v2.csv';
 
 const CATEGORY_MAP = { 1: 'Word', 2: 'Idiom', 3: 'Phrasal' };
 const USAGE_MAP    = { 0: 'Common', 1: 'Unique', 2: 'Specific', 3: 'Colloquial', 4: 'Common', 5: 'Common', 6: 'Common' };
