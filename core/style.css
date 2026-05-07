@@ -433,3 +433,9 @@ textarea.form-input{resize:none;line-height:1.6;min-height:68px;}
 .toast.success{background:var(--ant);}
 .toast.error{background:var(--danger);}
 .toast.warn{background:var(--warn);}
+
+/* ── BLOCKED SCREEN ── */
+/* Add these rules to the existing GATE section in style.css */
+.blocked-title{font-family:'Lora',serif;font-size:28px;font-weight:700;color:var(--danger);margin-bottom:12px;text-align:center;}
+.blocked-message{font-size:13px;color:rgba(255,255,255,.45);margin-bottom:32px;text-align:center;max-width:300px;line-height:1.6;}
+.blocked-actions{width:100%;max-width:320px;display:flex;flex-direction:column;gap:10px;}
