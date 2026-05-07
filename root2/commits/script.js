@@ -5,10 +5,11 @@
 
 'use strict';
 
-let selectedIndices = new Set();
+let selectedKeys       = new Set();   // stores e_key values — stable across re-renders
 let currentStateFilter = 'all';
 let currentOpFilter    = 'all';
 let currentSort        = 'newest';
+let currentSearch      = '';
 let _toastTimer;
 
 const OP_ICON = {
@@ -59,7 +60,6 @@ function switchTab(name, btn) {
   btn.classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
   clearSelectionAndUpdate();
-  // Re-render active panel in case queue changed
   if (name === 'logs')    renderLogs();
   if (name === 'removed') renderRemoved();
 }
@@ -74,11 +74,20 @@ function renderLogs() {
   if (currentStateFilter !== 'all') q = q.filter(a => a.state === currentStateFilter);
   if (currentOpFilter    !== 'all') q = q.filter(a => a.op    === currentOpFilter);
 
+  // Apply search
+  if (currentSearch) {
+    const lower = currentSearch.toLowerCase();
+    q = q.filter(a =>
+      (a.word || '').toLowerCase().includes(lower) ||
+      (a.op   || '').toLowerCase().includes(lower)
+    );
+  }
+
   // Apply sort
-  if (currentSort === 'newest')   q = [...q].reverse();
-  if (currentSort === 'oldest')   { /* already chronological */ }
-  if (currentSort === 'word_asc') q = [...q].sort((a, b) => a.word.localeCompare(b.word));
-  if (currentSort === 'word_desc')q = [...q].sort((a, b) => b.word.localeCompare(a.word));
+  if (currentSort === 'newest')    q = [...q].reverse();
+  if (currentSort === 'oldest')    { /* already chronological */ }
+  if (currentSort === 'word_asc')  q = [...q].sort((a, b) => (a.word || '').localeCompare(b.word));
+  if (currentSort === 'word_desc') q = [...q].sort((a, b) => (b.word || '').localeCompare(a.word));
 
   const list  = document.getElementById('commitLogList');
   const empty = document.getElementById('logsEmpty');
@@ -90,20 +99,20 @@ function renderLogs() {
 
   if (q.length === 0) { empty.classList.remove('hidden'); return; }
   empty.classList.add('hidden');
-  q.forEach((action, idx) => list.appendChild(buildLogItem(action, idx)));
+  q.forEach(action => list.appendChild(buildLogItem(action)));
 }
 
-function buildLogItem(action, idx) {
+function buildLogItem(action) {
   const info       = OP_ICON[action.op] || OP_ICON.edit;
   const stateClass = 'state-' + action.state;
   const dimClass   = action.state === 'dropped'   ? 'state-dropped-item'
                    : action.state === 'published' ? 'state-published-item' : '';
   const time       = new Date(action.timestamp)
     .toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const isSelected = action.e_key != null && selectedKeys.has(action.e_key);
   const el         = document.createElement('div');
-  el.className     = 'commit-log-item ' + dimClass +
-    (selectedIndices.has(idx) ? ' selected' : '');
-  el.dataset.idx   = idx;
+  el.className     = 'commit-log-item ' + dimClass + (isSelected ? ' selected' : '');
+  el.dataset.eKey  = action.e_key != null ? action.e_key : '';
   el.innerHTML     = `
     <div class="commit-item-header">
       <div class="commit-op-icon" style="background:${info.bg}">${info.icon}</div>
@@ -116,7 +125,7 @@ function buildLogItem(action, idx) {
         <div class="commit-check">✓</div>
       </div>
     </div>`;
-  el.addEventListener('click', () => toggleSelect(el, idx));
+  el.addEventListener('click', () => toggleSelect(el, action.e_key));
   return el;
 }
 
@@ -154,17 +163,23 @@ function renderRemoved() {
 }
 
 // ════════════════════════════════════════════
-// SELECTION
+// SELECTION — keyed by e_key
 // ════════════════════════════════════════════
-function toggleSelect(el, idx) {
-  if (selectedIndices.has(idx)) { selectedIndices.delete(idx); el.classList.remove('selected'); }
-  else { selectedIndices.add(idx); el.classList.add('selected'); }
+function toggleSelect(el, e_key) {
+  if (e_key == null) return;
+  if (selectedKeys.has(e_key)) {
+    selectedKeys.delete(e_key);
+    el.classList.remove('selected');
+  } else {
+    selectedKeys.add(e_key);
+    el.classList.add('selected');
+  }
   updateSelectionLabel();
   updateMenuState();
 }
 
 function clearSelectionAndUpdate() {
-  selectedIndices.clear();
+  selectedKeys.clear();
   document.querySelectorAll('.commit-log-item.selected')
     .forEach(el => el.classList.remove('selected'));
   updateSelectionLabel();
@@ -174,12 +189,18 @@ function clearSelectionAndUpdate() {
 function updateSelectionLabel() {
   const lbl = document.getElementById('commitsSelectedLabel');
   if (!lbl) return;
-  if (selectedIndices.size > 0) { lbl.textContent = selectedIndices.size + ' selected'; lbl.classList.add('show'); }
-  else { lbl.classList.remove('show'); }
+  if (selectedKeys.size > 0) {
+    lbl.textContent = selectedKeys.size + ' selected';
+    lbl.classList.add('show');
+  } else {
+    lbl.classList.remove('show');
+  }
 }
 
 function getSelectionMode() {
-  return selectedIndices.size === 0 ? 'none' : selectedIndices.size === 1 ? 'single' : 'multi';
+  return selectedKeys.size === 0 ? 'none'
+       : selectedKeys.size === 1 ? 'single'
+       : 'multi';
 }
 
 // ════════════════════════════════════════════
@@ -227,22 +248,27 @@ function closeOptions() {
   document.getElementById('optionsOverlay').classList.remove('open');
   document.getElementById('optionsSheet').classList.remove('open');
 }
-function toggleChip(c) { c.classList.toggle('active'); }
+
+// Single-select within each chip group
+function toggleChip(c) {
+  const group = c.closest('.opt-chips');
+  if (!group) { c.classList.toggle('active'); return; }
+  group.querySelectorAll('.opt-chip').forEach(chip => chip.classList.remove('active'));
+  c.classList.add('active');
+}
+
 function selectSort(opt) {
   document.querySelectorAll('.sort-option').forEach(s => s.classList.remove('active'));
   opt.classList.add('active');
 }
 
 function applyOptions() {
-  // State filter — single active chip
   const stateChip = document.querySelector('#filterState .opt-chip.active');
   currentStateFilter = stateChip?.dataset.value || 'all';
 
-  // Op filter — single active chip
   const opChip = document.querySelector('#filterOp .opt-chip.active');
   currentOpFilter = opChip?.dataset.value || 'all';
 
-  // Sort
   const sortOpt = document.querySelector('.sort-option.active');
   currentSort = sortOpt?.dataset.sort || 'newest';
 
@@ -269,9 +295,13 @@ function resetOptions() {
 // QUEUE OPERATIONS
 // ════════════════════════════════════════════
 function applyToSelected(newState) {
-  if (!selectedIndices.size) { showToast('Select actions first'); return; }
+  if (!selectedKeys.size) { showToast('Select actions first'); return; }
   const q = getQueue();
-  selectedIndices.forEach(idx => { if (q[idx]) q[idx].state = newState; });
+  q.forEach(action => {
+    if (action.e_key != null && selectedKeys.has(action.e_key)) {
+      action.state = newState;
+    }
+  });
   saveQueue(q);
   clearSelectionAndUpdate();
   renderLogs();
@@ -279,12 +309,19 @@ function applyToSelected(newState) {
 }
 
 function deleteSelected() {
-  if (!selectedIndices.size) { showToast('Select actions first'); return; }
+  if (!selectedKeys.size) { showToast('Select actions first'); return; }
   const q = getQueue(), removed = getRemoved();
-  [...selectedIndices].sort((a, b) => b - a).forEach(idx => removed.push(...q.splice(idx, 1)));
-  saveQueue(q); saveRemoved(removed);
+  const toRemove = [], toKeep = [];
+  q.forEach(action => {
+    if (action.e_key != null && selectedKeys.has(action.e_key)) toRemove.push(action);
+    else toKeep.push(action);
+  });
+  removed.push(...toRemove);
+  saveQueue(toKeep);
+  saveRemoved(removed);
   clearSelectionAndUpdate();
-  renderLogs(); renderRemoved();
+  renderLogs();
+  renderRemoved();
   showToast('🗑 Moved to Removed', 'error');
 }
 
@@ -295,24 +332,33 @@ function publishAll() {
   clearSelectionAndUpdate();
   renderLogs();
   showToast('✅ All non-dropped actions published', 'success');
+  // TODO: wire to actual DB write (triangle.js Side 3)
 }
 
 function discardAll() {
   const q = getQueue(), removed = getRemoved();
-  removed.push(...q); saveRemoved(removed); saveQueue([]);
+  const toDiscard = [], skipped = [];
+  q.forEach(a => {
+    if (a.state === 'published') skipped.push(a);
+    else toDiscard.push(a);
+  });
+  removed.push(...toDiscard);
+  saveRemoved(removed);
+  saveQueue(skipped);
   clearSelectionAndUpdate();
-  renderLogs(); renderRemoved();
-  showToast('🗑 Queue discarded', 'error');
+  renderLogs();
+  renderRemoved();
+  if (skipped.length > 0) {
+    showToast('⚠️ ' + skipped.length + ' published action' + (skipped.length !== 1 ? 's' : '') + ' kept', 'warn');
+  } else {
+    showToast('🗑 Queue discarded', 'error');
+  }
 }
 
 // ════════════════════════════════════════════
-// SEARCH — filters array not DOM
+// SEARCH — stored in currentSearch, applied in renderLogs()
 // ════════════════════════════════════════════
 function filterCommits(q) {
-  const lower = q.toLowerCase();
-  document.querySelectorAll('.commit-log-item').forEach(item => {
-    const w = item.querySelector('.commit-item-word')?.textContent.toLowerCase() || '';
-    const m = item.querySelector('.commit-item-meta')?.textContent.toLowerCase() || '';
-    item.style.display = (w.includes(lower) || m.includes(lower)) ? '' : 'none';
-  });
+  currentSearch = q.trim();
+  renderLogs();
 }
