@@ -15,6 +15,14 @@ const USAGE_MAP    = { 0: 'Common', 1: 'Unique', 2: 'Specific', 3: 'Colloquial',
 let dataList     = [];
 let lastSyncedAt = null;
 
+// ── e_key counter ──────────────────────────
+let _maxEKey = 0;
+
+function generateEKey() {
+  _maxEKey += 1;
+  return _maxEKey;
+}
+
 // ── Public API ─────────────────────────────
 
 async function loadFromGitHub() {
@@ -29,7 +37,12 @@ function loadFromText(csvText) {
 }
 
 function buildDataList(rows) {
-  dataList     = rows.map(row => normaliseRow(row));
+  _maxEKey  = 0;
+  dataList  = rows.map(row => {
+    const entry = normaliseRow(row);
+    entry.e_key = generateEKey();
+    return entry;
+  });
   lastSyncedAt = new Date();
   return dataList;
 }
@@ -81,6 +94,7 @@ function normaliseRow(row) {
   const validNum = !isNaN(numid) && numid !== 0;
 
   return {
+    // e_key assigned by buildDataList() or generateEKey() at write time
     uid:           parseInt(row['uid']) || 0,
     numid:         isNaN(numid) ? 0 : numid,
     word:          row['word']          || '',
@@ -121,21 +135,18 @@ function normaliseRow(row) {
 function applyFilters(entries, filters = {}) {
   let result = [...entries];
 
-  // Category — single
   if (filters.category && filters.category !== 'all') {
     const map = { word: 1, idiom: 2, phrasal: 3 };
     const val = map[filters.category];
     if (val) result = result.filter(e => e.category === val);
   }
 
-  // Usage/label — single
   if (filters.usage && filters.usage !== 'all') {
     const map = { common: 0, unique: 1, specific: 2, colloquial: 3 };
     const val = map[filters.usage];
     if (val !== undefined) result = result.filter(e => e.usage === val);
   }
 
-  // Condition chips — multi
   if (filters.onlyDefs)       result = result.filter(e => e.hasDef);
   if (filters.noExamples)     result = result.filter(e => !e.hasExample);
   if (filters.reviewNote)     result = result.filter(e => e.review_note);
@@ -144,7 +155,6 @@ function applyFilters(entries, filters = {}) {
   if (filters.hasTranslation) result = result.filter(e => e.hasTranslation);
   if (filters.isolated)       result = result.filter(e => !e.refword);
 
-  // NumId range
   if (filters.numidMin !== '' && filters.numidMin != null) {
     result = result.filter(e => e.numid >= parseFloat(filters.numidMin));
   }
@@ -152,7 +162,6 @@ function applyFilters(entries, filters = {}) {
     result = result.filter(e => e.numid <= parseFloat(filters.numidMax));
   }
 
-  // Text search
   if (filters.search) {
     const q = filters.search.toLowerCase();
     result = result.filter(e => e.word.toLowerCase().includes(q));
@@ -182,6 +191,10 @@ function getEntryByUid(uid) {
   return dataList.find(e => e.uid === uid) || null;
 }
 
+function getEntryByEKey(e_key) {
+  return dataList.find(e => e.e_key === e_key) || null;
+}
+
 function searchEntries(query, limit = 20) {
   if (!query || query.length < 1) return [];
   const q = query.toLowerCase();
@@ -196,11 +209,10 @@ function getGroupMembers(numid) {
 }
 
 // ── Tile meta string ──────────────────────
-// Returns array of parts shown on tile line 2
 
 function buildTileMeta(entry) {
   return {
-    label:     entry.usageLabel,                    // always shown — Common or otherwise
+    label:     entry.usageLabel,
     indicators: [
       { key: 'D',  active: entry.hasDef         },
       { key: 'E',  active: entry.hasExample      },
