@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Dictionary — Commits</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../core/style.css">
+</head>
+<body>
+<!-- ══ BLOCKED SCREEN ══ -->
+<div class="screen" id="blockedScreen">
+  <div class="gate-wrap">
+    <div class="blocked-title" id="blockedTitle"></div>
+    <div class="blocked-message" id="blockedMessage"></div>
+    <div class="blocked-actions">
+      <button class="gate-btn" id="blockedBtn1"></button>
+      <button class="gate-btn" id="blockedBtn2"></button>
+    </div>
+  </div>
+</div>
+<!-- ══ NO SESSION ══ -->
+<div class="screen active" id="noSessionScreen">
+  <div class="gate-wrap">
+    <div class="gate-title">Commits</div>
+    <div class="gate-subtitle" style="margin-bottom:32px">No active session found</div>
+    <button class="gate-btn" style="max-width:280px" onclick="window.location.href=('../crud/')">← Go to CRUD Panel</button>
+  </div>
+</div>
+
+<!-- ══ COMMITS SCREEN ══ -->
+<div class="screen" id="commitsScreen">
+
+  <nav class="navbar">
+    <div class="app-title">Commits</div>
+    <div class="nav-right">
+      <button class="nav-btn" onclick="openOptions()">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="4" cy="12" r="2" fill="currentColor" stroke="none"/></svg>
+        Options
+      </button>
+      <button class="nav-btn" onclick="openMenu()">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Menu
+      </button>
+      <button class="nav-btn crud-btn" onclick="window.open('../crud/','_blank')">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        CRUD
+      </button>
+    </div>
+  </nav>
+
+  <div class="crud-tabs">
+    <button class="crud-tab active" onclick="switchTab('logs', this)">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Logs
+    </button>
+    <button class="crud-tab" onclick="switchTab('removed', this)">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      Removed
+    </button>
+    <button class="crud-tab" onclick="switchTab('import', this)">
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Import
+    </button>
+  </div>
+
+  <div class="crud-body">
+
+    <!-- LOGS TAB -->
+    <div class="crud-panel active" id="panel-logs">
+      <div class="commits-search-wrap">
+        <input class="commits-search" type="text" placeholder="Search log entries…" oninput="filterCommits(this.value)"/>
+        <svg class="commits-search-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </div>
+      <div class="commits-count-bar">
+        <span class="commits-count" id="logsCount">0 actions</span>
+        <span class="commits-selected-label" id="commitsSelectedLabel">0 selected</span>
+      </div>
+      <div id="commitLogList"></div>
+      <div class="empty-state hidden" id="logsEmpty">
+        <div class="empty-state-icon">📋</div>
+        <div>No pending actions</div>
+        <div style="font-size:11px;margin-top:4px;color:var(--text-secondary)">Actions queued in CRUD will appear here</div>
+      </div>
+    </div>
+
+    <!-- REMOVED TAB -->
+    <div class="crud-panel" id="panel-removed">
+      <div class="empty-state" id="removedEmpty">
+        <div class="empty-state-icon">🗑</div>
+        <div>No removed actions</div>
+        <div style="font-size:11px;margin-top:4px;color:var(--text-secondary)">Deleted log entries appear here</div>
+      </div>
+      <div id="removedList"></div>
+    </div>
+
+    <!-- IMPORT TAB -->
+    <div class="crud-panel" id="panel-import">
+      <div class="form-section">
+        <div class="form-section-header"><span class="form-section-title">Pull from DB</span></div>
+        <div class="form-section-body">
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.5">Fetch drafted actions from the logs table back into this session for review or modification.</div>
+          <button class="btn-primary" style="font-size:13px" onclick="showToast('↪ Drafts loaded from DB','success')">Pull Drafts from DB</button>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-header"><span class="form-section-title">Pull from File</span></div>
+        <div class="form-section-body">
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.5">Import a JSON log file. Useful for offline workflows — prepare logs locally and push when connected.</div>
+          <div class="import-drop-zone" style="padding:22px;border-radius:9px;margin-bottom:0" onclick="showToast('↪ File loaded into Logs','success')">
+            <div class="import-drop-icon" style="font-size:22px;margin-bottom:6px">📄</div>
+            <div class="import-drop-title" style="font-size:13px">Drop JSON log file</div>
+            <div class="import-drop-sub">or <span>browse file</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ MENU ══ -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMenu()"></div>
+<div class="sidebar" id="commitsMenuSidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-title">Log Operations</span>
+    <button class="sidebar-close" onclick="closeMenu()">✕</button>
+  </div>
+  <div class="sidebar-section-label">Actions</div>
+  <button class="menu-item" id="menuEdit" onclick="closeMenu();showToast('Edit — undo and re-queue')">
+    <div class="menu-icon mi-edit"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Edit</div><div class="menu-desc">Undo action and re-queue with changes</div></div>
+  </button>
+  <button class="menu-item" id="menuSchedule" onclick="closeMenu();showToast('Schedule — coming soon')">
+    <div class="menu-icon mi-schedule"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Schedule</div><div class="menu-desc">Set a publish time for this action</div></div>
+  </button>
+  <button class="menu-item" id="menuRename" onclick="closeMenu();showToast('Rename log entry')">
+    <div class="menu-icon mi-rename"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Rename</div><div class="menu-desc">Rename the log entry display name</div></div>
+  </button>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section-label">State</div>
+  <button class="menu-item" id="menuPublish" onclick="closeMenu();applyToSelected('published')">
+    <div class="menu-icon mi-publish"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Publish</div><div class="menu-desc">Apply to entries table now</div></div>
+  </button>
+  <button class="menu-item" id="menuDraft" onclick="closeMenu();applyToSelected('draft')">
+    <div class="menu-icon mi-draft"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Draft</div><div class="menu-desc">Save to logs table without applying</div></div>
+  </button>
+  <button class="menu-item" id="menuDrop" onclick="closeMenu();applyToSelected('dropped')">
+    <div class="menu-icon mi-drop"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Drop</div><div class="menu-desc">Skip on Publish All, stays in queue</div></div>
+  </button>
+  <button class="menu-item" id="menuDelete" onclick="closeMenu();deleteSelected()">
+    <div class="menu-icon mi-trash"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Delete</div><div class="menu-desc">Remove from queue → Removed tab</div></div>
+  </button>
+  <div class="sidebar-divider"></div>
+  <div class="sidebar-section-label">Global</div>
+  <button class="menu-item" id="menuPublishAll" onclick="closeMenu();publishAll()">
+    <div class="menu-icon mi-publish"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Publish All</div><div class="menu-desc">Apply all non-dropped actions</div></div>
+  </button>
+  <button class="menu-item" id="menuDiscardAll" onclick="closeMenu();discardAll()">
+    <div class="menu-icon mi-trash"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Discard All</div><div class="menu-desc">Clear entire queue permanently</div></div>
+  </button>
+</div>
+
+<!-- ══ OPTIONS ══ -->
+<div class="options-overlay" id="optionsOverlay" onclick="closeOptions()"></div>
+<div class="options-sheet" id="optionsSheet">
+  <div class="options-handle"></div>
+  <div class="options-header">
+    <span class="options-title">Log Options</span>
+    <button class="options-reset" onclick="resetOptions()">Reset all</button>
+  </div>
+  <div class="options-body">
+    <div><div class="opt-group-label">Filter by State</div><div class="opt-chips" id="filterState">
+        <div class="opt-chip active" data-value="all"       onclick="toggleChip(this)">All</div>
+        <div class="opt-chip"        data-value="draft"     onclick="toggleChip(this)">Draft</div>
+        <div class="opt-chip"        data-value="dropped"   onclick="toggleChip(this)">Dropped</div>
+        <div class="opt-chip ant-chip" data-value="published" onclick="toggleChip(this)">Published</div>
+      </div></div>
+    <div><div class="opt-group-label">Filter by Operation</div><div class="opt-chips" id="filterOp">
+        <div class="opt-chip active" data-value="all"     onclick="toggleChip(this)">All</div>
+        <div class="opt-chip"        data-value="create"  onclick="toggleChip(this)">Create</div>
+        <div class="opt-chip"        data-value="edit"    onclick="toggleChip(this)">Edit</div>
+        <div class="opt-chip"        data-value="update"  onclick="toggleChip(this)">Update</div>
+        <div class="opt-chip"        data-value="rename"  onclick="toggleChip(this)">Rename</div>
+        <div class="opt-chip"        data-value="regroup" onclick="toggleChip(this)">Regroup</div>
+        <div class="opt-chip"        data-value="trash"   onclick="toggleChip(this)">Trash</div>
+        <div class="opt-chip"        data-value="disable" onclick="toggleChip(this)">Disable</div>
+        <div class="opt-chip"        data-value="map"     onclick="toggleChip(this)">Map</div>
+      </div></div>
+    <div>
+      <div class="opt-group-label">Sort By</div>
+      <div class="sort-option active" data-sort="newest" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Newest first</span></div>
+      <div class="sort-option" data-sort="oldest" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Oldest first</span></div>
+      <div class="sort-option" data-sort="word_asc" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Word A → Z</span></div>
+      <div class="sort-option" data-sort="word_desc" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Word Z → A</span></div>
+    </div>
+    <div style="display:flex;gap:8px;padding-top:4px;">
+      <button class="btn-secondary" style="font-size:12px;padding:11px;border-radius:10px" onclick="closeOptions()">Close</button>
+      <button class="btn-primary" style="font-size:12px;padding:11px;border-radius:10px;flex:2" onclick="applyOptions()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script src="../core/state.js"></script>
+<script src="../core/support.js"></script>
+<script src="../core/crudgate.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
