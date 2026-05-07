@@ -193,6 +193,7 @@ function buildTile(entry) {
 
   tile.className     = tileClass;
   tile.dataset.uid   = entry.uid;
+  tile.dataset.eKey  = entry.e_key;
   tile.dataset.word  = entry.word;
   tile.dataset.numid = entry.numid;
   tile.dataset.cat   = entry.categoryLabel;
@@ -268,9 +269,10 @@ function getFirstSelectedTile() {
 }
 function getFirstSelectedWord()  { return getFirstSelectedTile()?.dataset.word  || ''; }
 function getFirstSelectedNumid() { return getFirstSelectedTile()?.dataset.numid || ''; }
+function getFirstSelectedEKey()  { return parseInt(getFirstSelectedTile()?.dataset.eKey) || null; }
 function getFirstSelectedEntry() {
   const tile = getFirstSelectedTile();
-  return tile ? getEntryByUid(parseInt(tile.dataset.uid)) : null;
+  return tile ? getEntryByEKey(parseInt(tile.dataset.eKey)) : null;
 }
 function getSelectionMode() {
   return selectedUids.size === 0 ? 'none' : selectedUids.size === 1 ? 'single' : 'multi';
@@ -462,10 +464,11 @@ function bindModalOverlayClose() {
 // QUEUE — from modal forms
 // ════════════════════════════════════════════
 function queueFromModal(type, modalId) {
-  const entry = getFirstSelectedEntry();
-  const word  = entry?.word  || '—';
-  const numid = entry?.numid ?? null;
-  const extra = {};
+  const entry  = getFirstSelectedEntry();
+  const word   = entry?.word   || '—';
+  const numid  = entry?.numid  ?? null;
+  const e_key  = entry?.e_key  ?? null;
+  const extra  = {};
 
   if (type === 'edit')    extra.newData = { word: getVal('editWord'), numid: parseFloat(getVal('editNumid')), role: getVal('editRole'), definition1: getVal('editDef1'), definition2: getVal('editDef2'), active: document.getElementById('editActive')?.checked, review_note: document.getElementById('editReview')?.checked, comment: getVal('editComment') };
   if (type === 'update')  extra.newData = { role: getVal('updateRole'), definition1: getVal('updateDef1'), definition2: getVal('updateDef2'), comment: getVal('updateComment') };
@@ -475,7 +478,7 @@ function queueFromModal(type, modalId) {
   if (type === 'disable') { extra.newData = { active: document.getElementById('disableActive')?.checked }; extra.comment = getVal('disableComment'); }
   if (type === 'add')     extra.newData = { word: getVal('addWord'), addAs: getVal('addAs'), category: getVal('addCategory'), comment: getVal('addComment') };
 
-  const result = pushCommit(makeCommit(type, word, numid, extra));
+  const result = pushCommit(makeCommit(type, word, numid, e_key, extra));
   if (!result.ok) { showToast('🔴 Hard limit — review Commits', 'error'); return; }
   updateBadge();
   closeModal(modalId);
@@ -488,19 +491,39 @@ function queueCreate() {
   const numid = parseFloat(getVal('createNumid'));
   if (!word)       { showToast('Word is required', 'error'); return; }
   if (isNaN(numid)){ showToast('NumId is required', 'error'); return; }
+
+  // Generate e_key for the new entry and add it to dataList
+  const newEKey = generateEKey();
   const ex = [...document.querySelectorAll('#examplesList textarea')].map(t => t.value.trim());
   const bx = [...document.querySelectorAll('#bengaliExList textarea')].map(t => t.value.trim());
-  const result = pushCommit(makeCommit('create', word, numid, { newData: {
-    word, numid,
-    category: getVal('createCategory'), usage: getVal('createUsage'), role: getVal('createRole'),
-    definition1: getVal('createDef1'), definition2: getVal('createDef2'),
-    example1: ex[0]||'', example2: ex[1]||'', example3: ex[2]||'', example4: ex[3]||'', example5: ex[4]||'',
-    bengali_def: getVal('createBengaliDef'), bengali_ex1: bx[0]||'', bengali_ex2: bx[1]||'', bengali_ex3: bx[2]||'',
-    active: document.getElementById('createActive')?.checked,
-    review_note: document.getElementById('createReview')?.checked,
-    comment: getVal('createComment'),
-  }}));
-  if (!result.ok) { showToast('🔴 Hard limit — review Commits', 'error'); return; }
+
+  const newEntry = {
+    e_key:       newEKey,
+    uid:         0,
+    numid,
+    word,
+    category:    parseInt(getVal('createCategory')) || 1,
+    usage:       parseInt(getVal('createUsage'))    || 0,
+    role:        getVal('createRole'),
+    definition1: getVal('createDef1'),
+    definition2: getVal('createDef2'),
+    example1:    ex[0] || '', example2: ex[1] || '', example3: ex[2] || '',
+    example4:    ex[3] || '', example5: ex[4] || '',
+    bengali_def: getVal('createBengaliDef'),
+    bengali_ex1: bx[0] || '', bengali_ex2: bx[1] || '', bengali_ex3: bx[2] || '',
+    active:      document.getElementById('createActive')?.checked ?? true,
+    review_note: document.getElementById('createReview')?.checked ?? false,
+    comment:     getVal('createComment'),
+  };
+  dataList.push(newEntry);
+
+  const result = pushCommit(makeCommit('create', word, numid, newEKey, { newData: newEntry }));
+  if (!result.ok) {
+    // Roll back dataList addition if commit failed
+    dataList.pop();
+    showToast('🔴 Hard limit — review Commits', 'error');
+    return;
+  }
   updateBadge();
   showToast('↪ Create queued', 'success');
   if (result.reason === 'soft_limit') setTimeout(() => showToast('⚠️ ' + getPendingCount() + ' pending', 'warn'), 2400);
@@ -682,7 +705,7 @@ function onMapFieldInput(input, id) {
       item.className = 'ref-dropdown-item';
       item.dataset.word = entry.word; item.dataset.numid = entry.numid; item.dataset.uid = entry.uid;
       item.setAttribute('onclick', `selectMapFromDropdown(this,'${id}')`);
-      item.innerHTML = `<div class="ref-dropdown-word">${escHtml(entry.word)}</div><div class="ref-dropdown-meta">UID ${entry.uid} · NumId ${entry.numid} · ${entry.role || entry.categoryLabel}</div>`;
+      item.innerHTML = `<div class="ref-dropdown-word">${escHtml(entry.word)}</div><div class="ref-dropdown-meta">NumId ${entry.numid} · ${entry.role || entry.categoryLabel}</div>`;
       drop.appendChild(item);
     });
     drop.classList.toggle('show', !!drop.children.length);
@@ -725,7 +748,7 @@ function toggleMapLookup() { document.getElementById('mapLookupPanel').classList
 
 function mapSaveAll() {
   const entry  = getFirstSelectedEntry();
-  const result = pushCommit(makeCommit('map', entry?.word || '—', entry?.numid ?? null));
+  const result = pushCommit(makeCommit('map', entry?.word || '—', entry?.numid ?? null, entry?.e_key ?? null));
   if (!result.ok) { showToast('🔴 Hard limit — review Commits', 'error'); return; }
   updateBadge(); showToast('↪ Map changes queued', 'success'); closeMapPanel();
 }
