@@ -121,7 +121,7 @@ function toggleEye() {
 // ════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════
-function goToCommits() { window.location.href = '../commits/'; }
+function goToCommits() { window.location.href = ('../commits/'); }
 
 // ════════════════════════════════════════════
 // TABS
