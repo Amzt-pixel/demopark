@@ -17,11 +17,38 @@ let filteredList    = [];
 let mapOpenCardId   = null;
 let mapSelectedRefs = new Set();
 
+// Form operation state
+let currentOp       = 'create';   // active operation type
+let formSnapshot    = null;        // pre-fill snapshot for Reset
+
 // Create tab counters
 let exCount = 1;
 let bCount  = 1;
 
 let _toastTimer;
+
+// ── Operation config ───────────────────────
+const OP_CONFIG = {
+  create:  { label: 'Create',  badge: '＋ Create',  badgeClass: 'op-add',     subtitle: 'Fill in all fields to create a new entry', frozen: [] },
+  add:     { label: 'Add',     badge: '＋ Add',     badgeClass: 'op-add',     subtitle: 'New word added to the same NumId group as selected', frozen: ['createNumid'] },
+  edit:    { label: 'Edit',    badge: '✏ Edit',    badgeClass: 'op-edit',    subtitle: 'Full edit — all fields modifiable', frozen: [] },
+  update:  { label: 'Update',  badge: '📝 Update',  badgeClass: 'op-update',  subtitle: 'Non-essential fields only — NumId and category unchanged',
+             frozen: ['createNumid', 'createCategory', 'createWord'] },
+  rename:  { label: 'Rename',  badge: 'Aa Rename', badgeClass: 'op-rename',  subtitle: 'Change the word string only',
+             frozen: ['createNumid', 'createCategory', 'createUsage', 'createRole', 'createDef1', 'createDef2', 'createActive', 'createReview'] },
+  regroup: { label: 'Regroup', badge: '⬡ Regroup', badgeClass: 'op-regroup', subtitle: 'Change NumId — moves word to a different group',
+             frozen: ['createWord', 'createCategory', 'createUsage', 'createRole', 'createDef1', 'createDef2', 'createActive', 'createReview'] },
+  trash:   { label: 'Trash',   badge: '🗑 Trash',   badgeClass: 'op-trash',   subtitle: 'Sets NumId → 0. Word becomes invalid.',
+             frozen: ['createWord', 'createNumid', 'createCategory', 'createUsage', 'createRole', 'createDef1', 'createDef2', 'createActive', 'createReview'] },
+  disable: { label: 'Disable', badge: '⊘ Disable', badgeClass: 'op-disable', subtitle: 'Toggle active — word hidden everywhere',
+             frozen: ['createWord', 'createNumid', 'createCategory', 'createUsage', 'createRole', 'createDef1', 'createDef2', 'createReview'] },
+};
+
+// All toggleable field ids in the form
+const ALL_FIELDS = [
+  'createWord', 'createCategory', 'createUsage', 'createRole',
+  'createNumid', 'createDef1', 'createDef2', 'createActive', 'createReview',
+];
 
 // ════════════════════════════════════════════
 // TOAST
@@ -44,7 +71,6 @@ window.addEventListener('load', () => {
     updateMenuState();
     initData();
   }
-  bindModalOverlayClose();
 });
 
 async function initData() {
@@ -159,10 +185,7 @@ function renderTiles(entries) {
   const empty     = document.getElementById('viewEmpty');
   if (!container) return;
   container.innerHTML = '';
-  if (entries.length === 0) {
-    empty?.classList.remove('hidden');
-    return;
-  }
+  if (entries.length === 0) { empty?.classList.remove('hidden'); return; }
   empty?.classList.add('hidden');
   const frag = document.createDocumentFragment();
   entries.forEach(e => frag.appendChild(buildTile(e)));
@@ -171,24 +194,18 @@ function renderTiles(entries) {
 
 function buildTile(entry) {
   const tile = document.createElement('div');
-
   const badgeClass = entry.category === 2 ? 'badge-idiom'
-                   : entry.category === 3 ? 'badge-phrasal'
-                   : 'badge-word';
-
+                   : entry.category === 3 ? 'badge-phrasal' : 'badge-word';
   let tileClass = 'word-tile';
   if (entry.isInvalid)       tileClass += ' invalid-tile';
   else if (entry.isInactive) tileClass += ' inactive-tile';
   if (selectedUids.has(String(entry.uid))) tileClass += ' selected';
 
-  const meta      = buildTileMeta(entry);
-  const indStr    = meta.indicators
-    .map(ind => ind.active
-      ? ind.key
-      : `<span class="meta-dim">${ind.key}</span>`)
+  const meta    = buildTileMeta(entry);
+  const indStr  = meta.indicators
+    .map(ind => ind.active ? ind.key : `<span class="meta-dim">${ind.key}</span>`)
     .join(' | ');
-  const metaStr   = `${meta.label} | ${indStr}`;
-
+  const metaStr = `${meta.label} | ${indStr}`;
   const numidDisplay = entry.numid < 0 ? '−' + Math.abs(entry.numid) : String(entry.numid);
 
   tile.className     = tileClass;
@@ -258,15 +275,12 @@ function onTileClick(tile) {
 function updateSelectionLabel() {
   const lbl = document.getElementById('selectedLabel');
   if (!lbl) return;
-  if (selectedUids.size === 1)      { lbl.textContent = getFirstSelectedWord(); lbl.classList.add('show'); }
-  else if (selectedUids.size > 1)   { lbl.textContent = selectedUids.size + ' selected'; lbl.classList.add('show'); }
-  else                               { lbl.classList.remove('show'); }
+  if (selectedUids.size === 1)    { lbl.textContent = getFirstSelectedWord(); lbl.classList.add('show'); }
+  else if (selectedUids.size > 1) { lbl.textContent = selectedUids.size + ' selected'; lbl.classList.add('show'); }
+  else                             { lbl.classList.remove('show'); }
 }
 
-function getFirstSelectedTile() {
-  if (!selectedUids.size) return null;
-  return document.querySelector(`.word-tile[data-uid="${[...selectedUids][0]}"]`);
-}
+function getFirstSelectedTile()  { return selectedUids.size ? document.querySelector(`.word-tile[data-uid="${[...selectedUids][0]}"]`) : null; }
 function getFirstSelectedWord()  { return getFirstSelectedTile()?.dataset.word  || ''; }
 function getFirstSelectedNumid() { return getFirstSelectedTile()?.dataset.numid || ''; }
 function getFirstSelectedEKey()  { return parseInt(getFirstSelectedTile()?.dataset.eKey) || null; }
@@ -310,7 +324,8 @@ function filterView(q) {
 // MENU — context-sensitive
 // ════════════════════════════════════════════
 const MENU_VISIBILITY = {
-  menuAdd:     ['none', 'single', 'multi'],
+  menuCreate:  ['none'],
+  menuAdd:     ['single'],
   menuEdit:    ['single'],
   menuUpdate:  ['single'],
   menuRename:  ['single'],
@@ -363,17 +378,17 @@ function selectSort(opt) {
 }
 
 function applyOptions() {
-  currentFilters.category      = document.querySelector('#filterCategory .opt-chip.active')?.dataset.value || 'all';
-  currentFilters.usage         = document.querySelector('#filterUsage .opt-chip.active')?.dataset.value    || 'all';
-  currentFilters.onlyDefs      = !!document.querySelector('[data-cond="onlyDefs"].active');
-  currentFilters.noExamples    = !!document.querySelector('[data-cond="noExamples"].active');
-  currentFilters.reviewNote    = !!document.querySelector('[data-cond="reviewNote"].active');
-  currentFilters.invalid       = !!document.querySelector('[data-cond="invalid"].active');
-  currentFilters.inactive      = !!document.querySelector('[data-cond="inactive"].active');
-  currentFilters.hasTranslation= !!document.querySelector('[data-cond="hasTranslation"].active');
-  currentFilters.isolated      = !!document.querySelector('[data-cond="isolated"].active');
-  currentFilters.numidMin      = document.getElementById('filterNumidMin')?.value || '';
-  currentFilters.numidMax      = document.getElementById('filterNumidMax')?.value || '';
+  currentFilters.category       = document.querySelector('#filterCategory .opt-chip.active')?.dataset.value || 'all';
+  currentFilters.usage          = document.querySelector('#filterUsage .opt-chip.active')?.dataset.value    || 'all';
+  currentFilters.onlyDefs       = !!document.querySelector('[data-cond="onlyDefs"].active');
+  currentFilters.noExamples     = !!document.querySelector('[data-cond="noExamples"].active');
+  currentFilters.reviewNote     = !!document.querySelector('[data-cond="reviewNote"].active');
+  currentFilters.invalid        = !!document.querySelector('[data-cond="invalid"].active');
+  currentFilters.inactive       = !!document.querySelector('[data-cond="inactive"].active');
+  currentFilters.hasTranslation = !!document.querySelector('[data-cond="hasTranslation"].active');
+  currentFilters.isolated       = !!document.querySelector('[data-cond="isolated"].active');
+  currentFilters.numidMin       = document.getElementById('filterNumidMin')?.value || '';
+  currentFilters.numidMax       = document.getElementById('filterNumidMax')?.value || '';
   currentSort = document.querySelector('.sort-option.active')?.dataset.sort || 'word_asc';
   closeOptions();
   applyAndRender();
@@ -392,125 +407,298 @@ function resetOptions() {
 }
 
 // ════════════════════════════════════════════
-// MODALS
+// FORM OPERATION — open, freeze, prefill
 // ════════════════════════════════════════════
-const OP_MODAL_MAP = {
-  add:'addModal', edit:'editModal', update:'updateModal',
-  rename:'renameModal', regroup:'regroupModal',
-  trash:'trashModal', disable:'disableModal',
-};
+function openFormOp(type) {
+  currentOp = type;
+  const cfg   = OP_CONFIG[type];
+  const entry = (type === 'create') ? null : getFirstSelectedEntry();
 
-function openOpModal(type) {
-  const id = OP_MODAL_MAP[type];
-  if (!id) return;
-  prefillModal(type);
-  openModal(id);
-}
+  // Update tab label
+  document.getElementById('formTabLabel').textContent = cfg.label;
 
-function prefillModal(type) {
-  const entry = getFirstSelectedEntry();
-  if (type === 'edit' && entry) {
-    setVal('editWord', entry.word); setVal('editNumid', entry.numid);
-    setVal('editRole', entry.role); setVal('editDef1', entry.definition1);
-    setVal('editDef2', entry.definition2);
-    setCheck('editActive', entry.active); setCheck('editReview', entry.review_note);
-    setText('editModalTitle', entry.word);
+  // Show / hide op header
+  const header   = document.getElementById('formOpHeader');
+  const badge    = document.getElementById('formOpBadge');
+  const subtitle = document.getElementById('formOpSubtitle');
+  if (type === 'create') {
+    header.style.display = 'none';
+  } else {
+    header.style.display = 'block';
+    badge.className      = 'op-badge ' + cfg.badgeClass;
+    badge.textContent    = cfg.badge;
+    subtitle.textContent = entry
+      ? cfg.subtitle + (entry.word ? ' — ' + entry.word : '')
+      : cfg.subtitle;
   }
-  if (type === 'update' && entry) {
-    setVal('updateRole', entry.role); setVal('updateDef1', entry.definition1);
-    setVal('updateDef2', entry.definition2);
-    setText('updateModalTitle', entry.word);
-  }
-  if (type === 'rename' && entry) {
-    setVal('renameWord', entry.word);
-    setVal('renameComment', 'Renamed from: ' + entry.word);
-    setText('renameCurrentLabel', 'Current: ' + entry.word);
-  }
-  if (type === 'regroup' && entry) {
-    setText('regroupCurrentLabel', entry.word + ' · Current NumId: ' + entry.numid);
-    setText('regroupHint', 'Current: ' + entry.numid + ' · Positive = syn · Negative = ant');
-  }
-  if (type === 'trash' && entry) {
-    setText('trashModalTitle', entry.word);
-    setText('trashAutoComment', 'Original numid=' + entry.numid);
-  }
-  if (type === 'disable' && entry) {
-    setText('disableModalTitle', entry.word);
-    setText('disableCurrentStatus', entry.active ? 'Currently active — visible in app' : 'Currently inactive — hidden everywhere');
-    setCheck('disableActive', entry.active);
-  }
-  if (type === 'add') {
-    setText('addGroupLabel', entry
-      ? 'Adding to group of: ' + entry.word + ' [' + entry.numid + ']'
-      : 'No word selected — standalone');
-  }
-}
 
-function setVal(id, val)   { const el = document.getElementById(id); if (el) el.value       = val ?? ''; }
-function setCheck(id, val) { const el = document.getElementById(id); if (el) el.checked     = !!val; }
-function setText(id, val)  { const el = document.getElementById(id); if (el) el.textContent = val ?? ''; }
-function getVal(id)        { return document.getElementById(id)?.value || ''; }
+  // Show Cancel button for non-create ops
+  document.getElementById('formCancelBtn').style.display = type === 'create' ? 'none' : '';
 
-function openModal(id)  { document.getElementById(id)?.classList.add('open'); }
-function closeModal(id) { document.getElementById(id)?.classList.remove('open'); }
-
-function bindModalOverlayClose() {
-  document.querySelectorAll('.modal-overlay').forEach(o => {
-    o.addEventListener('click', function(e) { if (e.target === this) closeModal(this.id); });
+  // Unfreeze all fields first
+  ALL_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = false;
   });
+  // Freeze relevant fields
+  cfg.frozen.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = true;
+  });
+
+  // Pre-fill from entry
+  prefillForm(type, entry);
+
+  // Take snapshot for Reset
+  formSnapshot = captureFormSnapshot();
+
+  // Switch to form tab
+  const formTab = document.getElementById('formTab');
+  switchTab('form', formTab);
+}
+
+function prefillForm(type, entry) {
+  // Always clear examples/bengali lists first
+  clearDynamicLists();
+
+  if (!entry && type !== 'create' && type !== 'add') return;
+
+  if (type === 'create') {
+    clearAllFormFields();
+    return;
+  }
+
+  if (type === 'add') {
+    clearAllFormFields();
+    // Pre-fill NumId from selected word's group
+    if (entry) setVal('createNumid', entry.numid);
+    return;
+  }
+
+  // For all other ops — fill from entry
+  setVal('createWord',     entry.word);
+  setVal('createNumid',    entry.numid);
+  setSelectByValue('createCategory', String(entry.category));
+  setSelectByValue('createUsage',    String(entry.usage));
+  setVal('createRole',     entry.role);
+  setVal('createDef1',     entry.definition1);
+  setVal('createDef2',     entry.definition2);
+  setCheck('createActive', entry.active);
+  setCheck('createReview', entry.review_note);
+
+  // Fill examples
+  const exVals = [entry.example1, entry.example2, entry.example3, entry.example4, entry.example5].filter(Boolean);
+  fillDynamicList('examplesList', exVals, 5, 'Example sentence');
+  exCount = Math.max(exVals.length, 1);
+
+  // Fill Bengali examples
+  const bxVals = [entry.bengali_ex1, entry.bengali_ex2, entry.bengali_ex3].filter(Boolean);
+  fillDynamicList('bengaliExList', bxVals, 3, 'Bengali example');
+  bCount = Math.max(bxVals.length, 1);
+
+  // Bengali def
+  setVal('createBengaliDef', entry.bengali_def);
+}
+
+function fillDynamicList(listId, vals, max, placeholder) {
+  const list = document.getElementById(listId);
+  if (!list) return;
+  list.innerHTML = '';
+  const count = Math.max(vals.length, 1);
+  for (let i = 0; i < count; i++) {
+    const row = document.createElement('div');
+    row.className = 'example-row';
+    const isFirst = i === 0;
+    row.innerHTML = `<textarea class="form-input" placeholder="${placeholder} ${i + 1}…">${escHtml(vals[i] || '')}</textarea>`
+      + (isFirst ? '' : `<button class="example-remove" onclick="this.closest('.example-row').remove()">✕</button>`);
+    list.appendChild(row);
+  }
+}
+
+function clearDynamicLists() {
+  const ex = document.getElementById('examplesList');
+  if (ex) ex.innerHTML = '<div class="example-row"><textarea class="form-input" placeholder="Example sentence 1…"></textarea></div>';
+  const bx = document.getElementById('bengaliExList');
+  if (bx) bx.innerHTML = '<div class="example-row"><textarea class="form-input" placeholder="Bengali example 1…"></textarea></div>';
+  exCount = 1; bCount = 1;
+}
+
+function clearAllFormFields() {
+  document.querySelectorAll('#panel-form input:not([type="checkbox"]), #panel-form textarea, #panel-form select')
+    .forEach(el => {
+      if (el.tagName === 'SELECT') el.selectedIndex = 0;
+      else el.value = '';
+    });
+  const activeChk = document.getElementById('createActive');
+  const reviewChk = document.getElementById('createReview');
+  if (activeChk) activeChk.checked = true;
+  if (reviewChk) reviewChk.checked = false;
+}
+
+// ── Snapshot for Reset ─────────────────────
+function captureFormSnapshot() {
+  const snap = {};
+  document.querySelectorAll('#panel-form input, #panel-form textarea, #panel-form select')
+    .forEach(el => {
+      if (!el.id) return;
+      snap[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+  // Capture dynamic lists
+  snap._examples = [...document.querySelectorAll('#examplesList textarea')].map(t => t.value);
+  snap._bengali  = [...document.querySelectorAll('#bengaliExList textarea')].map(t => t.value);
+  return snap;
+}
+
+function restoreFormSnapshot(snap) {
+  if (!snap) return;
+  Object.entries(snap).forEach(([id, val]) => {
+    if (id.startsWith('_')) return;
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (el.type === 'checkbox') el.checked = val;
+    else el.value = val;
+  });
+  // Restore dynamic lists
+  if (snap._examples) fillDynamicList('examplesList', snap._examples, 5, 'Example sentence');
+  if (snap._bengali)  fillDynamicList('bengaliExList', snap._bengali,  3, 'Bengali example');
 }
 
 // ════════════════════════════════════════════
-// QUEUE — from modal forms
+// CANCEL / RESET
 // ════════════════════════════════════════════
-function queueFromModal(type, modalId) {
+function cancelForm() {
+  currentOp    = 'create';
+  formSnapshot = null;
+  clearAllFormFields();
+  clearDynamicLists();
+  ALL_FIELDS.forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
+  document.getElementById('formTabLabel').textContent  = 'Create';
+  document.getElementById('formOpHeader').style.display = 'none';
+  document.getElementById('formCancelBtn').style.display = 'none';
+  // Switch back to View tab
+  const viewTab = document.querySelector('.crud-tab');
+  switchTab('view', viewTab);
+}
+
+function resetForm() {
+  if (currentOp === 'create') {
+    clearAllFormFields();
+    clearDynamicLists();
+    showToast('Form cleared');
+  } else {
+    restoreFormSnapshot(formSnapshot);
+    showToast('Changes undone');
+  }
+}
+
+// ════════════════════════════════════════════
+// COMMIT — routes by currentOp
+// ════════════════════════════════════════════
+function queueCommit() {
   const entry  = getFirstSelectedEntry();
-  const word   = entry?.word   || '—';
-  const numid  = entry?.numid  ?? null;
+  const word   = entry?.word   || getVal('createWord').trim() || '—';
+  const numid  = entry?.numid  ?? parseFloat(getVal('createNumid'));
   const e_key  = entry?.e_key  ?? null;
   const extra  = {};
 
-  if (type === 'edit')    extra.newData = { word: getVal('editWord'), numid: parseFloat(getVal('editNumid')), role: getVal('editRole'), definition1: getVal('editDef1'), definition2: getVal('editDef2'), active: document.getElementById('editActive')?.checked, review_note: document.getElementById('editReview')?.checked, comment: getVal('editComment') };
-  if (type === 'update')  extra.newData = { role: getVal('updateRole'), definition1: getVal('updateDef1'), definition2: getVal('updateDef2'), comment: getVal('updateComment') };
-  if (type === 'rename')  { extra.newData = { word: getVal('renameWord') };  extra.comment = getVal('renameComment'); }
-  if (type === 'regroup') { extra.newData = { numid: parseFloat(getVal('regroupNumid')) }; extra.comment = getVal('regroupComment'); }
-  if (type === 'trash')   { extra.newData = { numid: 0 }; extra.comment = 'Original numid=' + numid + '. ' + getVal('trashComment'); }
-  if (type === 'disable') { extra.newData = { active: document.getElementById('disableActive')?.checked }; extra.comment = getVal('disableComment'); }
-  if (type === 'add')     extra.newData = { word: getVal('addWord'), addAs: getVal('addAs'), category: getVal('addCategory'), comment: getVal('addComment') };
+  if (currentOp === 'create') {
+    return queueCreate();  // handled separately (adds to dataList)
+  }
 
-  const result = pushCommit(makeCommit(type, word, numid, e_key, extra));
+  if (currentOp === 'add') {
+    const newWord = getVal('createWord').trim();
+    if (!newWord) { showToast('Word is required', 'error'); return; }
+    extra.newData = {
+      word:        newWord,
+      numid:       entry?.numid ?? null,
+      category:    parseInt(getVal('createCategory')) || 1,
+      role:        getVal('createRole'),
+      definition1: getVal('createDef1'),
+      definition2: getVal('createDef2'),
+    };
+  }
+
+  if (currentOp === 'edit') {
+    extra.newData = {
+      word:        getVal('createWord'),
+      numid:       parseFloat(getVal('createNumid')),
+      category:    parseInt(getVal('createCategory')) || 1,
+      usage:       parseInt(getVal('createUsage'))    || 0,
+      role:        getVal('createRole'),
+      definition1: getVal('createDef1'),
+      definition2: getVal('createDef2'),
+      active:      document.getElementById('createActive')?.checked,
+      review_note: document.getElementById('createReview')?.checked,
+      comment:     getVal('createComment'),
+    };
+  }
+
+  if (currentOp === 'update') {
+    extra.newData = {
+      usage:       parseInt(getVal('createUsage')) || 0,
+      role:        getVal('createRole'),
+      definition1: getVal('createDef1'),
+      definition2: getVal('createDef2'),
+      comment:     getVal('createComment'),
+    };
+  }
+
+  if (currentOp === 'rename') {
+    const newWord = getVal('createWord').trim();
+    if (!newWord) { showToast('New word string is required', 'error'); return; }
+    extra.newData  = { word: newWord };
+    extra.comment  = 'Renamed from: ' + (entry?.word || '—');
+  }
+
+  if (currentOp === 'regroup') {
+    const newNumid = parseFloat(getVal('createNumid'));
+    if (isNaN(newNumid)) { showToast('New NumId is required', 'error'); return; }
+    extra.newData = { numid: newNumid };
+    extra.comment = 'Regrouped from numid=' + (entry?.numid ?? '—');
+  }
+
+  if (currentOp === 'trash') {
+    extra.newData = { numid: 0 };
+    extra.comment = 'Original numid=' + (entry?.numid ?? '—') + '. ' + getVal('createComment');
+  }
+
+  if (currentOp === 'disable') {
+    extra.newData = { active: document.getElementById('createActive')?.checked };
+    extra.comment = getVal('createComment');
+  }
+
+  const result = pushCommit(makeCommit(currentOp, word, numid, e_key, extra));
   if (!result.ok) { showToast('🔴 Hard limit — review Commits', 'error'); return; }
   updateBadge();
-  closeModal(modalId);
-  showToast('↪ ' + capFirst(type) + ' queued', 'success');
+  showToast('↪ ' + capFirst(currentOp) + ' queued', 'success');
   if (result.reason === 'soft_limit') setTimeout(() => showToast('⚠️ ' + getPendingCount() + ' pending', 'warn'), 2400);
+  cancelForm();  // reset form back to Create state after queuing
 }
 
+// ════════════════════════════════════════════
+// CREATE (new entry — adds to dataList)
+// ════════════════════════════════════════════
 function queueCreate() {
   const word  = getVal('createWord').trim();
   const numid = parseFloat(getVal('createNumid'));
-  if (!word)       { showToast('Word is required', 'error'); return; }
-  if (isNaN(numid)){ showToast('NumId is required', 'error'); return; }
+  if (!word)        { showToast('Word is required', 'error'); return; }
+  if (isNaN(numid)) { showToast('NumId is required', 'error'); return; }
 
-  // Generate e_key for the new entry and add it to dataList
   const newEKey = generateEKey();
   const ex = [...document.querySelectorAll('#examplesList textarea')].map(t => t.value.trim());
   const bx = [...document.querySelectorAll('#bengaliExList textarea')].map(t => t.value.trim());
 
   const newEntry = {
-    e_key:       newEKey,
-    uid:         0,
-    numid,
-    word,
+    e_key: newEKey, uid: 0, numid, word,
     category:    parseInt(getVal('createCategory')) || 1,
     usage:       parseInt(getVal('createUsage'))    || 0,
     role:        getVal('createRole'),
     definition1: getVal('createDef1'),
     definition2: getVal('createDef2'),
-    example1:    ex[0] || '', example2: ex[1] || '', example3: ex[2] || '',
-    example4:    ex[3] || '', example5: ex[4] || '',
+    example1: ex[0]||'', example2: ex[1]||'', example3: ex[2]||'',
+    example4: ex[3]||'', example5: ex[4]||'',
     bengali_def: getVal('createBengaliDef'),
-    bengali_ex1: bx[0] || '', bengali_ex2: bx[1] || '', bengali_ex3: bx[2] || '',
+    bengali_ex1: bx[0]||'', bengali_ex2: bx[1]||'', bengali_ex3: bx[2]||'',
     active:      document.getElementById('createActive')?.checked ?? true,
     review_note: document.getElementById('createReview')?.checked ?? false,
     comment:     getVal('createComment'),
@@ -518,19 +706,27 @@ function queueCreate() {
   dataList.push(newEntry);
 
   const result = pushCommit(makeCommit('create', word, numid, newEKey, { newData: newEntry }));
-  if (!result.ok) {
-    // Roll back dataList addition if commit failed
-    dataList.pop();
-    showToast('🔴 Hard limit — review Commits', 'error');
-    return;
-  }
+  if (!result.ok) { dataList.pop(); showToast('🔴 Hard limit — review Commits', 'error'); return; }
   updateBadge();
   showToast('↪ Create queued', 'success');
   if (result.reason === 'soft_limit') setTimeout(() => showToast('⚠️ ' + getPendingCount() + ' pending', 'warn'), 2400);
+  cancelForm();
 }
 
 // ════════════════════════════════════════════
-// CREATE TAB
+// HELPERS
+// ════════════════════════════════════════════
+function setVal(id, val)   { const el = document.getElementById(id); if (el) el.value       = val ?? ''; }
+function setCheck(id, val) { const el = document.getElementById(id); if (el) el.checked     = !!val; }
+function getVal(id)        { return document.getElementById(id)?.value || ''; }
+function setSelectByValue(id, val) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  [...el.options].forEach((o, i) => { if (o.value === val) el.selectedIndex = i; });
+}
+
+// ════════════════════════════════════════════
+// CREATE TAB — dynamic example rows
 // ════════════════════════════════════════════
 function addExample() {
   if (exCount >= 5) { showToast('Maximum 5 examples'); return; }
@@ -547,18 +743,6 @@ function addBengaliExample() {
   row.className = 'example-row';
   row.innerHTML = `<textarea class="form-input" placeholder="Bengali example ${bCount}…"></textarea><button class="example-remove" onclick="this.closest('.example-row').remove()">✕</button>`;
   document.getElementById('bengaliExList').appendChild(row);
-}
-function resetForm() {
-  document.querySelectorAll('#panel-create input, #panel-create textarea, #panel-create select')
-    .forEach(el => {
-      if (el.type === 'checkbox') el.checked = el.id === 'createActive';
-      else if (el.tagName === 'SELECT') el.selectedIndex = 0;
-      else el.value = '';
-    });
-  document.getElementById('examplesList').innerHTML = '<div class="example-row"><textarea class="form-input" placeholder="Example sentence 1…"></textarea></div>';
-  document.getElementById('bengaliExList').innerHTML = '<div class="example-row"><textarea class="form-input" placeholder="Bengali example 1…"></textarea></div>';
-  exCount = 1; bCount = 1;
-  showToast('Form cleared');
 }
 
 // ════════════════════════════════════════════
