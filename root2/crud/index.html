@@ -69,9 +69,9 @@
       <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="3" y="12" width="18" height="3" rx="1"/><rect x="3" y="19" width="18" height="2" rx="1"/></svg>
       View
     </button>
-    <button class="crud-tab" onclick="switchTab('create', this)">
-      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Create
+    <button class="crud-tab" onclick="switchTab('form', this)" id="formTab">
+  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  <span id="formTabLabel">Create</span>
     </button>
     <button class="crud-tab" onclick="switchTab('transport', this)">
       <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -102,7 +102,11 @@
     </div>
 
     <!-- CREATE TAB -->
-    <div class="crud-panel" id="panel-create">
+   <div class="crud-panel" id="panel-form">
+     <div id="formOpHeader" style="display:none;margin-bottom:14px;">
+       <span class="op-badge" id="formOpBadge"></span>
+       <div class="modal-subtitle" id="formOpSubtitle" style="margin-top:6px;margin-bottom:0;font-size:11px;color:var(--text-secondary)"></div>
+     </div>
       <div class="form-section">
         <div class="form-section-header"><span class="form-section-title">Core</span></div>
         <div class="form-section-body">
@@ -168,10 +172,11 @@
         <div class="comment-box-label">📌 Admin Comment</div>
         <textarea id="createComment" placeholder="Internal note — only visible to admin…"></textarea>
       </div>
-      <div class="form-actions">
-        <button class="btn-secondary" onclick="resetForm()">Reset</button>
-        <button class="btn-primary" onclick="queueCreate()">Queue Word</button>
-      </div>
+     <div class="form-actions">
+       <button class="btn-secondary" id="formCancelBtn" onclick="cancelForm()" style="display:none">Cancel</button>
+       <button class="btn-secondary" onclick="resetForm()">Reset</button>
+       <button class="btn-primary" onclick="queueCommit()">Commit</button>
+     </div>
     </div>
 
     <!-- TRANSPORT TAB -->
@@ -239,7 +244,7 @@
     <div class="hold-popup-syns"><span class="hold-popup-syn">Propensity</span><span class="hold-popup-syn">Tendency</span></div>
     <div class="hold-popup-actions">
       <button class="hold-popup-btn hold-popup-close" onclick="closeHoldPopup()">Close</button>
-      <button class="hold-popup-btn hold-popup-edit" onclick="closeHoldPopup();openOpModal('edit')">Edit</button>
+      <button class="hold-popup-btn hold-popup-edit" onclick="closeHoldPopup();openFormOp('edit')">Edit</button>
     </div>
   </div>
 </div>
@@ -252,23 +257,27 @@
     <button class="sidebar-close" onclick="closeMenu()">✕</button>
   </div>
   <div class="sidebar-section-label">Word Operations</div>
-  <button class="menu-item" id="menuAdd" onclick="closeMenu();openOpModal('add')">
+  <button class="menu-item" id="menuCreate" onclick="closeMenu();openFormOp('create')">
     <div class="menu-icon mi-add"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
-    <div class="menu-text"><div class="menu-label">Add</div><div class="menu-desc">New word in same or opposite group</div></div>
+    <div class="menu-text"><div class="menu-label">Create</div><div class="menu-desc">New word — standalone entry</div></div>
   </button>
-  <button class="menu-item" id="menuEdit" onclick="closeMenu();openOpModal('edit')">
+  <button class="menu-item" id="menuAdd" onclick="closeMenu();openFormOp('add')">
+    <div class="menu-icon mi-add"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+    <div class="menu-text"><div class="menu-label">Add</div><div class="menu-desc">New word in same NumId group</div></div>
+  </button>
+  <button class="menu-item" id="menuEdit" onclick="closeMenu();openFormOp('edit')">
     <div class="menu-icon mi-edit"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
     <div class="menu-text"><div class="menu-label">Edit</div><div class="menu-desc">Full form — all fields</div></div>
   </button>
-  <button class="menu-item" id="menuUpdate" onclick="closeMenu();openOpModal('update')">
+  <button class="menu-item" id="menuUpdate" onclick="closeMenu();openFormOp('update')">
     <div class="menu-icon mi-update"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
     <div class="menu-text"><div class="menu-label">Update</div><div class="menu-desc">Non-essential fields only</div></div>
   </button>
-  <button class="menu-item" id="menuRename" onclick="closeMenu();openOpModal('rename')">
+  <button class="menu-item" id="menuRename" onclick="closeMenu();openFormOp('rename')">
     <div class="menu-icon mi-rename"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
     <div class="menu-text"><div class="menu-label">Rename</div><div class="menu-desc">Change the word string</div></div>
   </button>
-  <button class="menu-item" id="menuRegroup" onclick="closeMenu();openOpModal('regroup')">
+  <button class="menu-item" id="menuRegroup" onclick="closeMenu();openFormOp('regroup')">
     <div class="menu-icon mi-regroup"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
     <div class="menu-text"><div class="menu-label">Regroup</div><div class="menu-desc">Change NumId — move word group</div></div>
   </button>
@@ -280,11 +289,11 @@
   </button>
   <div class="sidebar-divider"></div>
   <div class="sidebar-section-label">Status</div>
-  <button class="menu-item" id="menuDisable" onclick="closeMenu();openOpModal('disable')">
+  <button class="menu-item" id="menuDisable" onclick="closeMenu();openFormOp('disable')">
     <div class="menu-icon mi-disable"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
     <div class="menu-text"><div class="menu-label">Disable</div><div class="menu-desc">Toggle active — hide word everywhere</div></div>
   </button>
-  <button class="menu-item" id="menuTrash" onclick="closeMenu();openOpModal('trash')">
+  <button class="menu-item" id="menuTrash" onclick="closeMenu();openFormOp('trash')">
     <div class="menu-icon mi-trash"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg></div>
     <div class="menu-text"><div class="menu-label">Trash</div><div class="menu-desc">Set NumId → 0, word becomes invalid</div></div>
   </button>
@@ -339,74 +348,6 @@
 </div>
 
 <!-- ══ OPERATION MODALS ══ -->
-<div class="modal-overlay" id="editModal">
-  <div class="modal"><div class="modal-handle"></div><span class="op-badge op-edit">✏ Edit</span><div class="modal-title" id="editModalTitle"></div><div class="modal-subtitle">Full edit — all fields queued to Commits</div>
-  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Word</label><input class="form-input" id="editWord" type="text" value=""/></div>
-  <div class="form-row" style="margin-bottom:11px"><div class="form-field"><label class="form-label">Category</label><select class="form-select"><option>Word</option><option>Idiom / Phrase</option><option>Phrasal Verb / Prep.</option></select></div><div class="form-field"><label class="form-label">Label</label><select class="form-select"><option>Common</option><option>Unique</option><option>Specific</option><option>Colloquial</option></select></div></div>
-  <div class="form-field" style="margin-bottom:11px"><label class="form-label">NumId</label><input class="form-input" id="editNumid" type="number" value=""/></div>
-  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Grammatical Role</label><input class="form-input" id="editRole" type="text" value=""/></div>
-  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Definition 1</label><textarea class="form-input" id="editDef1"></textarea></div>
-  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Definition 2</label><textarea class="form-input" placeholder="Optional…"></textarea></div>
-  <div class="toggle-row"><div><div class="toggle-label">Active</div></div><label class="toggle"><input type="checkbox" id="editActive" checked/><span class="toggle-slider"></span></label></div>
-  <div class="toggle-row"><div><div class="toggle-label">Review Note</div></div><label class="toggle"><input type="checkbox" id="editReview"/><span class="toggle-slider"></span></label></div>
-  <div class="comment-box"><div class="comment-box-label">📌 Admin Comment</div><textarea id="editComment" placeholder="Internal note…"></textarea></div>
-  <div class="modal-btn-row"><button class="btn-secondary" onclick="closeModal('editModal')">Cancel</button><button class="btn-primary" onclick="queueFromModal('edit','editModal')">Queue Edit</button></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="updateModal">
-  <div class="modal"><div class="modal-handle"></div><span class="op-badge op-update">📝 Update</span><div class="modal-title" id="updateModalTitle"></div><div class="modal-subtitle">Non-essential fields only</div>
-  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Label</label><select class="form-select" id="updateUsage"><option value="0">Common</option><option value="1">Unique</option><option value="2">Specific</option><option value="3">Colloquial</option></select></div>
-  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Grammatical Role</label><input class="form-input" id="updateRole" type="text" value=""/></div>
-  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Definition 1</label><textarea class="form-input" id="updateDef1"></textarea></div>
-  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Definition 2</label><textarea class="form-input" id="updateDef2" placeholder="Optional…"></textarea></div>
-  <div class="comment-box"><div class="comment-box-label">📌 Admin Comment</div><textarea id="updateComment" placeholder="Internal note…"></textarea></div>
-  <div class="modal-btn-row"><button class="btn-secondary" onclick="closeModal('updateModal')">Cancel</button><button class="btn-primary" onclick="queueFromModal('update','updateModal')">Queue Update</button></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="renameModal">
-  <div class="modal"><div class="modal-handle"></div><span class="op-badge op-rename">Aa Rename</span><div class="modal-title">Rename Word</div><div class="modal-subtitle" id="renameCurrentLabel">Current: —</div>
-  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Category</label><select class="form-select" disabled><option>Word</option></select></div>
-  <div class="form-field" style="margin-bottom:11px"><label class="form-label">New Word String</label><input class="form-input" id="renameWord" type="text" value=""/></div>
-  <div class="comment-box"><div class="comment-box-label">📌 Admin Comment</div><textarea id="renameComment" placeholder="Internal note…"></textarea></div>
-  <div class="modal-btn-row"><button class="btn-secondary" onclick="closeModal('renameModal')">Cancel</button><button class="btn-primary" onclick="queueFromModal('rename','renameModal')">Queue Rename</button></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="regroupModal">
-  <div class="modal"><div class="modal-handle"></div><span class="op-badge op-regroup">⬡ Regroup</span><div class="modal-title">Regroup Word</div><div class="modal-subtitle" id="regroupCurrentLabel">Current: —</div>
-  <div class="form-field" style="margin-bottom:11px"><label class="form-label">Category</label><select class="form-select" disabled><option>Word</option></select></div>
-  <div class="form-field" style="margin-bottom:4px"><label class="form-label">New NumId</label><input class="form-input" id="regroupNumid" type="number" step="0.1" placeholder="e.g. 12.0"/><div class="numid-hint" id="regroupHint">Current: — · Positive = synonym · Negative = antonym</div></div>
-  <div class="comment-box" style="margin-top:12px"><div class="comment-box-label">📌 Admin Comment</div><textarea id="regroupComment" placeholder="Internal note…"></textarea></div>
-  <div class="modal-btn-row"><button class="btn-secondary" onclick="closeModal('regroupModal')">Cancel</button><button class="btn-primary" onclick="queueFromModal('regroup','regroupModal')">Queue Regroup</button></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="addModal">
-  <div class="modal"><div class="modal-handle"></div><span class="op-badge op-add">＋ Add</span><div class="modal-title">Add to Group</div><div class="modal-subtitle" id="addGroupLabel">No word selected — standalone</div>
-  <div class="form-field" style="margin-bottom:11px"><label class="form-label">New Word</label><input class="form-input" id="addWord" type="text" placeholder="Word string…"/></div>
-  <div class="form-row" style="margin-bottom:11px"><div class="form-field"><label class="form-label">Add as</label><select class="form-select" id="addAs"><option value="syn">Synonym</option><option value="ant">Antonym</option></select></div><div class="form-field"><label class="form-label">Category</label><select class="form-select" id="addCategory"><option value="1">Word</option><option value="2">Idiom / Phrase</option><option value="3">Phrasal Verb / Prep.</option></select></div></div>
-  <div class="comment-box"><div class="comment-box-label">📌 Admin Comment</div><textarea id="addComment" placeholder="Internal note…"></textarea></div>
-  <div class="modal-btn-row"><button class="btn-secondary" onclick="closeModal('addModal')">Cancel</button><button class="btn-primary" onclick="queueFromModal('add','addModal')">Queue Add</button></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="trashModal">
-  <div class="modal"><div class="modal-handle"></div><span class="op-badge op-trash">🗑 Trash</span><div class="modal-title" id="trashModalTitle">Trash Word</div><div class="modal-subtitle" style="color:var(--danger)">Sets NumId → 0. Word becomes invalid.</div>
-  <div style="background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:9px;padding:11px 13px;margin-bottom:12px"><div style="font-size:11px;font-weight:700;color:var(--danger);margin-bottom:4px">Auto-comment:</div><div style="font-size:12px;font-family:monospace;color:var(--text)" id="trashAutoComment">—</div></div>
-  <div class="comment-box"><div class="comment-box-label">📌 Admin Comment</div><textarea id="trashComment" placeholder="Optional additional note…"></textarea></div>
-  <div class="modal-btn-row"><button class="btn-secondary" onclick="closeModal('trashModal')">Cancel</button><button class="btn-danger" style="flex:2" onclick="queueFromModal('trash','trashModal')">Queue Trash</button></div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="disableModal">
-  <div class="modal"><div class="modal-handle"></div><span class="op-badge op-disable">⊘ Disable</span><div class="modal-title" id="disableModalTitle">Toggle Active</div><div class="modal-subtitle" id="disableCurrentStatus">Word stays intact but hidden everywhere</div>
-  <div class="toggle-row" style="padding:13px 0"><div><div class="toggle-label">Active</div><div class="toggle-sub" id="disableCurrentStatus">Currently active — visible in app</div></div><label class="toggle"><input type="checkbox" id="disableActive" checked/><span class="toggle-slider"></span></label></div>
-  <div class="comment-box"><div class="comment-box-label">📌 Admin Comment</div><textarea id="disableComment" placeholder="Internal note…"></textarea></div>
-  <div class="modal-btn-row"><button class="btn-secondary" onclick="closeModal('disableModal')">Cancel</button><button class="btn-primary" onclick="queueFromModal('disable','disableModal')">Queue Change</button></div>
-  </div>
-</div>
 
 <!-- ══ MAP OVERLAY ══ -->
 <div class="map-overlay" id="mapOverlay" style="display:none">
