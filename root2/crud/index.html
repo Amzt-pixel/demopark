@@ -6,6 +6,139 @@
 <title>Dictionary — CRUD</title>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../core/style.css">
+<style>
+  /* ── Tooltip ── */
+  [data-tip] { position: relative; }
+  [data-tip]::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: -26px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(27,46,75,.95);
+    color: rgba(255,255,255,.85);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .3px;
+    padding: 3px 8px;
+    border-radius: 5px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .15s;
+    z-index: 999;
+  }
+  [data-tip]:hover::after { opacity: 1; }
+
+  /* ── Filter btn (left of search) ── */
+  .filter-btn {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    color: var(--text-secondary);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all .15s;
+    flex-shrink: 0;
+    box-shadow: var(--shadow);
+  }
+  .filter-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+  .filter-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+
+  /* ── Search row wrapper ── */
+  .view-search-row { display: flex; gap: 8px; align-items: center; }
+
+  /* ── Word list sidebar (Create tab) — wider ── */
+  .sidebar-wide {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 300px;
+    background: var(--navy);
+    z-index: 201;
+    transform: translateX(100%);
+    transition: transform .25s ease;
+    overflow-y: auto;
+    display: flex; flex-direction: column;
+  }
+  .sidebar-wide.open { transform: translateX(0); }
+
+  .sidebar-wide .sidebar-header {
+    padding: 14px 18px 11px;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sidebar-wide .sidebar-body { padding: 12px 18px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+
+  /* Word list search inside sidebar */
+  .wl-search-wrap { position: relative; }
+  .wl-search {
+    width: 100%; padding: 9px 34px 9px 12px;
+    border-radius: 9px; border: 1.5px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.07);
+    color: #fff; font-size: 12px; outline: none;
+    transition: border-color .2s; font-family: 'DM Sans', sans-serif;
+  }
+  .wl-search::placeholder { color: rgba(255,255,255,.3); }
+  .wl-search:focus { border-color: var(--accent); }
+  .wl-search-icon {
+    position: absolute; right: 10px; top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255,255,255,.3); pointer-events: none;
+  }
+
+  /* Word list filter chips */
+  .wl-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .wl-chip {
+    padding: 4px 10px; border-radius: 999px;
+    border: 1.5px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.05);
+    font-size: 10px; font-weight: 600;
+    color: rgba(255,255,255,.45);
+    cursor: pointer; transition: all .15s;
+  }
+  .wl-chip:hover { border-color: var(--accent-light); color: var(--accent-light); }
+  .wl-chip.active { border-color: var(--accent); background: rgba(212,151,59,.15); color: var(--accent-light); }
+
+  /* Word list items */
+  .wl-list { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; flex: 1; overflow-y: auto; }
+  .wl-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 9px 11px; border-radius: 9px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.04);
+    cursor: pointer; transition: all .15s;
+    user-select: none;
+  }
+  .wl-item:hover { border-color: var(--accent-light); background: rgba(212,151,59,.08); }
+  .wl-item-word { font-family: 'Lora', serif; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.9); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wl-item-meta { font-size: 9px; color: rgba(255,255,255,.35); margin-top: 2px; }
+  .wl-item-badge { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 999px; flex-shrink: 0; }
+  .wl-count { font-size: 10px; color: rgba(255,255,255,.3); font-weight: 500; padding: 0 2px; }
+
+  /* Settings bottom sheet */
+  .settings-sheet {
+    position: fixed; bottom: 0; left: 50%;
+    transform: translateX(-50%) translateY(100%);
+    width: 100%; max-width: 430px;
+    background: var(--surface);
+    border-radius: 24px 24px 0 0;
+    z-index: 201;
+    max-height: 75vh; overflow-y: auto;
+    transition: transform .25s ease;
+    box-shadow: 0 -4px 30px rgba(0,0,0,.15);
+  }
+  .settings-sheet.open { transform: translateX(-50%) translateY(0); }
+  .settings-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.4);
+    z-index: 200; opacity: 0; pointer-events: none; transition: opacity .25s;
+  }
+  .settings-overlay.open { opacity: 1; pointer-events: all; }
+  .settings-body { padding: 14px 20px 36px; display: flex; flex-direction: column; gap: 16px; }
+  .settings-placeholder {
+    text-align: center; padding: 40px 20px;
+    color: var(--text-secondary); font-size: 13px;
+  }
+  .settings-placeholder-icon { font-size: 32px; margin-bottom: 10px; }
+</style>
 </head>
 <body>
 
@@ -14,6 +147,7 @@
   <div class="loading-spinner"></div>
   <div class="loading-text" id="loadingText">Loading words…</div>
 </div>
+
 <!-- ══ BLOCKED SCREEN ══ -->
 <div class="screen" id="blockedScreen">
   <div class="gate-wrap">
@@ -25,6 +159,7 @@
     </div>
   </div>
 </div>
+
 <!-- ══ GATE ══ -->
 <div class="screen active" id="gateScreen">
   <div class="gate-wrap">
@@ -46,34 +181,72 @@
 <div class="screen" id="crudScreen">
 
   <nav class="navbar">
-    <div class="navbar-left"><div class="app-title">Admin</div><div class="sync-label" id="syncLabel">Not synced</div></div>
+    <div class="navbar-left">
+      <div class="app-title">Admin</div>
+      <div class="sync-label" id="syncLabel">Not synced</div>
+    </div>
     <div class="nav-right">
-      <button class="nav-btn" onclick="openOptions()">
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="4" cy="12" r="2" fill="currentColor" stroke="none"/></svg>
-        Options
+
+      <!-- Settings — always visible -->
+      <button class="nav-btn" id="settingsBtn" data-tip="Settings" onclick="openSettings()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
       </button>
-      <button class="nav-btn" onclick="openMenu()">
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        Menu
+
+      <!-- Dynamic middle button — swaps per tab -->
+      <!-- View tab: Actions (⋯) -->
+      <button class="nav-btn" id="navActionsBtn" data-tip="Actions" onclick="openMenu()" style="display:flex">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+          <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+          <circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+        </svg>
       </button>
-      <button class="nav-btn commit-btn" onclick="goToCommits()">
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>
-        Commits
+      <!-- Create tab: Word List -->
+      <button class="nav-btn" id="navWordListBtn" data-tip="Word List" onclick="openWordListSidebar()" style="display:none">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
+          <line x1="8" y1="18" x2="21" y2="18"/>
+          <circle cx="3" cy="6" r="1" fill="currentColor" stroke="none"/>
+          <circle cx="3" cy="12" r="1" fill="currentColor" stroke="none"/>
+          <circle cx="3" cy="18" r="1" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+      <!-- Transport tab: Import list (placeholder, no sidebar yet) -->
+      <button class="nav-btn" id="navTransportListBtn" data-tip="File List" onclick="showToast('File list — coming soon')" style="display:none">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+      </button>
+
+      <!-- Commits — always visible -->
+      <button class="nav-btn commit-btn" data-tip="Commits" onclick="goToCommits()">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="4"/>
+          <line x1="1.05" y1="12" x2="7" y2="12"/>
+          <line x1="17.01" y1="12" x2="22.96" y2="12"/>
+        </svg>
         <span class="commit-badge" id="commitBadge" style="display:none">0</span>
       </button>
+
     </div>
   </nav>
 
   <div class="crud-tabs">
-    <button class="crud-tab active" onclick="switchTab('view', this)">
+    <button class="crud-tab active" onclick="switchTab('view', this)" id="tabView">
       <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="5" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="3" y="12" width="18" height="3" rx="1"/><rect x="3" y="19" width="18" height="2" rx="1"/></svg>
       View
     </button>
     <button class="crud-tab" onclick="switchTab('form', this)" id="formTab">
-  <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-  <span id="formTabLabel">Create</span>
+      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <span id="formTabLabel">Create</span>
     </button>
-    <button class="crud-tab" onclick="switchTab('transport', this)">
+    <button class="crud-tab" onclick="switchTab('transport', this)" id="tabTransport">
       <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       Transport
     </button>
@@ -84,6 +257,12 @@
     <!-- VIEW TAB -->
     <div class="crud-panel active" id="panel-view">
       <div class="view-controls">
+        <!-- Filter button left of search -->
+        <button class="filter-btn" id="filterBtn" data-tip="Filter" onclick="openOptions()">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+          </svg>
+        </button>
         <div class="view-search-wrap">
           <input class="view-search" type="text" placeholder="Search words…" oninput="filterView(this.value)"/>
           <svg class="view-search-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -101,12 +280,12 @@
       </div>
     </div>
 
-    <!-- CREATE TAB -->
-   <div class="crud-panel" id="panel-form">
-     <div id="formOpHeader" style="display:none;margin-bottom:14px;">
-       <span class="op-badge" id="formOpBadge"></span>
-       <div class="modal-subtitle" id="formOpSubtitle" style="margin-top:6px;margin-bottom:0;font-size:11px;color:var(--text-secondary)"></div>
-     </div>
+    <!-- FORM TAB -->
+    <div class="crud-panel" id="panel-form">
+      <div id="formOpHeader" style="display:none;margin-bottom:14px;">
+        <span class="op-badge" id="formOpBadge"></span>
+        <div class="modal-subtitle" id="formOpSubtitle" style="margin-top:6px;margin-bottom:0;font-size:11px;color:var(--text-secondary)"></div>
+      </div>
       <div class="form-section">
         <div class="form-section-header"><span class="form-section-title">Core</span></div>
         <div class="form-section-body">
@@ -172,11 +351,11 @@
         <div class="comment-box-label">📌 Admin Comment</div>
         <textarea id="createComment" placeholder="Internal note — only visible to admin…"></textarea>
       </div>
-     <div class="form-actions">
-       <button class="btn-secondary" id="formCancelBtn" onclick="cancelForm()" style="display:none">Cancel</button>
-       <button class="btn-secondary" onclick="resetForm()">Reset</button>
-       <button class="btn-primary" onclick="queueCommit()">Commit</button>
-     </div>
+      <div class="form-actions">
+        <button class="btn-secondary" id="formCancelBtn" onclick="cancelForm()" style="display:none">Cancel</button>
+        <button class="btn-secondary" onclick="resetForm()">Reset</button>
+        <button class="btn-primary" onclick="queueCommit()">Commit</button>
+      </div>
     </div>
 
     <!-- TRANSPORT TAB -->
@@ -249,54 +428,89 @@
   </div>
 </div>
 
-<!-- ══ CRUD MENU ══ -->
-<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMenu()"></div>
+<!-- ══ SIDEBAR OVERLAY (shared) ══ -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeAllSidebars()"></div>
+
+<!-- ══ SIDEBAR 1: ACTIONS (View tab) ══ -->
 <div class="sidebar" id="crudMenuSidebar">
   <div class="sidebar-header">
     <span class="sidebar-title">Operations</span>
-    <button class="sidebar-close" onclick="closeMenu()">✕</button>
+    <button class="sidebar-close" onclick="closeAllSidebars()">✕</button>
   </div>
-  <div class="sidebar-section-label">Word Operations</div>
-  <button class="menu-item" id="menuCreate" onclick="closeMenu();openFormOp('create')">
-    <div class="menu-icon mi-add"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
-    <div class="menu-text"><div class="menu-label">Create</div><div class="menu-desc">New word — standalone entry</div></div>
-  </button>
-  <button class="menu-item" id="menuAdd" onclick="closeMenu();openFormOp('add')">
-    <div class="menu-icon mi-add"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
-    <div class="menu-text"><div class="menu-label">Add</div><div class="menu-desc">New word in same NumId group</div></div>
-  </button>
-  <button class="menu-item" id="menuEdit" onclick="closeMenu();openFormOp('edit')">
-    <div class="menu-icon mi-edit"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
-    <div class="menu-text"><div class="menu-label">Edit</div><div class="menu-desc">Full form — all fields</div></div>
-  </button>
-  <button class="menu-item" id="menuUpdate" onclick="closeMenu();openFormOp('update')">
-    <div class="menu-icon mi-update"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
-    <div class="menu-text"><div class="menu-label">Update</div><div class="menu-desc">Non-essential fields only</div></div>
-  </button>
-  <button class="menu-item" id="menuRename" onclick="closeMenu();openFormOp('rename')">
-    <div class="menu-icon mi-rename"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
-    <div class="menu-text"><div class="menu-label">Rename</div><div class="menu-desc">Change the word string</div></div>
-  </button>
-  <button class="menu-item" id="menuRegroup" onclick="closeMenu();openFormOp('regroup')">
-    <div class="menu-icon mi-regroup"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
-    <div class="menu-text"><div class="menu-label">Regroup</div><div class="menu-desc">Change NumId — move word group</div></div>
-  </button>
-  <div class="sidebar-divider"></div>
-  <div class="sidebar-section-label">References</div>
-  <button class="menu-item" id="menuMapBtn" onclick="closeMenu();openMapPanel()">
-    <div class="menu-icon mi-map"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
-    <div class="menu-text"><div class="menu-label">Map</div><div class="menu-desc" id="mapMenuDesc">Select a word first</div></div>
-  </button>
-  <div class="sidebar-divider"></div>
-  <div class="sidebar-section-label">Status</div>
-  <button class="menu-item" id="menuDisable" onclick="closeMenu();openFormOp('disable')">
-    <div class="menu-icon mi-disable"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
-    <div class="menu-text"><div class="menu-label">Disable</div><div class="menu-desc">Toggle active — hide word everywhere</div></div>
-  </button>
-  <button class="menu-item" id="menuTrash" onclick="closeMenu();openFormOp('trash')">
-    <div class="menu-icon mi-trash"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg></div>
-    <div class="menu-text"><div class="menu-label">Trash</div><div class="menu-desc">Set NumId → 0, word becomes invalid</div></div>
-  </button>
+  <div style="padding: 0 6px;">
+    <div class="sidebar-section-label">Word Operations</div>
+    <button class="menu-item" id="menuCreate" onclick="closeAllSidebars();openFormOp('create')">
+      <div class="menu-icon mi-add"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+      <div class="menu-text"><div class="menu-label">Create</div><div class="menu-desc">New word — standalone entry</div></div>
+    </button>
+    <button class="menu-item" id="menuAdd" onclick="closeAllSidebars();openFormOp('add')">
+      <div class="menu-icon mi-add"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+      <div class="menu-text"><div class="menu-label">Add</div><div class="menu-desc">New word in same NumId group</div></div>
+    </button>
+    <button class="menu-item" id="menuEdit" onclick="closeAllSidebars();openFormOp('edit')">
+      <div class="menu-icon mi-edit"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+      <div class="menu-text"><div class="menu-label">Edit</div><div class="menu-desc">Full form — all fields</div></div>
+    </button>
+    <button class="menu-item" id="menuUpdate" onclick="closeAllSidebars();openFormOp('update')">
+      <div class="menu-icon mi-update"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
+      <div class="menu-text"><div class="menu-label">Update</div><div class="menu-desc">Non-essential fields only</div></div>
+    </button>
+    <button class="menu-item" id="menuRename" onclick="closeAllSidebars();openFormOp('rename')">
+      <div class="menu-icon mi-rename"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
+      <div class="menu-text"><div class="menu-label">Rename</div><div class="menu-desc">Change the word string</div></div>
+    </button>
+    <button class="menu-item" id="menuRegroup" onclick="closeAllSidebars();openFormOp('regroup')">
+      <div class="menu-icon mi-regroup"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+      <div class="menu-text"><div class="menu-label">Regroup</div><div class="menu-desc">Change NumId — move word group</div></div>
+    </button>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section-label">References</div>
+    <button class="menu-item" id="menuMapBtn" onclick="closeAllSidebars();openMapPanel()">
+      <div class="menu-icon mi-map"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+      <div class="menu-text"><div class="menu-label">Map</div><div class="menu-desc" id="mapMenuDesc">Select a word first</div></div>
+    </button>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section-label">Status</div>
+    <button class="menu-item" id="menuDisable" onclick="closeAllSidebars();openFormOp('disable')">
+      <div class="menu-icon mi-disable"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
+      <div class="menu-text"><div class="menu-label">Disable</div><div class="menu-desc">Toggle active — hide word everywhere</div></div>
+    </button>
+    <button class="menu-item" id="menuTrash" onclick="closeAllSidebars();openFormOp('trash')">
+      <div class="menu-icon mi-trash"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg></div>
+      <div class="menu-text"><div class="menu-label">Trash</div><div class="menu-desc">Set NumId → 0, word becomes invalid</div></div>
+    </button>
+  </div>
+</div>
+
+<!-- ══ SIDEBAR 2: WORD LIST (Create tab) ══ -->
+<div class="sidebar-wide" id="wordListSidebar">
+  <div class="sidebar-header">
+    <span class="sidebar-title">Word List</span>
+    <button class="sidebar-close" onclick="closeAllSidebars()">✕</button>
+  </div>
+  <div class="sidebar-body">
+    <!-- Search -->
+    <div class="wl-search-wrap">
+      <input class="wl-search" id="wlSearch" type="text" placeholder="Search words…" oninput="filterWordList(this.value)"/>
+      <svg class="wl-search-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </div>
+    <!-- Filter chips -->
+    <div class="wl-chips" id="wlChips">
+      <div class="wl-chip active" data-wl="all"     onclick="toggleWlChip(this)">All</div>
+      <div class="wl-chip"        data-wl="word"    onclick="toggleWlChip(this)">Words</div>
+      <div class="wl-chip"        data-wl="idiom"   onclick="toggleWlChip(this)">Idioms</div>
+      <div class="wl-chip"        data-wl="phrasal" onclick="toggleWlChip(this)">Phrasal</div>
+    </div>
+    <!-- Count -->
+    <div class="wl-count" id="wlCount">0 words</div>
+    <!-- List -->
+    <div class="wl-list" id="wlList">
+      <div class="empty-state" style="color:rgba(255,255,255,.3);padding:30px 10px">
+        <div class="empty-state-icon">📋</div>
+        <div>No words loaded</div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- ══ OPTIONS SHEET ══ -->
@@ -333,12 +547,12 @@
     <div><div class="opt-group-label">NumId Range</div><div class="form-row" style="gap:8px"><input class="form-input" id="filterNumidMin" type="number" placeholder="Min" style="font-size:12px;padding:8px 11px"/><input class="form-input" id="filterNumidMax" type="number" placeholder="Max" style="font-size:12px;padding:8px 11px"/></div></div>
     <div>
       <div class="opt-group-label">Sort By</div>
-      <div class="sort-option active" data-sort="word_asc" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Word A → Z</span></div>
-      <div class="sort-option" data-sort="word_desc" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Word Z → A</span></div>
-      <div class="sort-option" data-sort="numid_asc" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">NumId Low → High</span></div>
-      <div class="sort-option" data-sort="numid_desc" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">NumId High → Low</span></div>
-      <div class="sort-option" data-sort="date_newest" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Creation Date (newest)</span></div>
-      <div class="sort-option" data-sort="date_oldest" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Creation Date (oldest)</span></div>
+      <div class="sort-option active" data-sort="word_asc"    onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Word A → Z</span></div>
+      <div class="sort-option"        data-sort="word_desc"   onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Word Z → A</span></div>
+      <div class="sort-option"        data-sort="numid_asc"   onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">NumId Low → High</span></div>
+      <div class="sort-option"        data-sort="numid_desc"  onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">NumId High → Low</span></div>
+      <div class="sort-option"        data-sort="date_newest" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Creation Date (newest)</span></div>
+      <div class="sort-option"        data-sort="date_oldest" onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Creation Date (oldest)</span></div>
     </div>
     <div style="display:flex;gap:8px;padding-top:4px;">
       <button class="btn-secondary" style="font-size:12px;padding:11px;border-radius:10px" onclick="resetOptions()">Reset</button>
@@ -347,7 +561,21 @@
   </div>
 </div>
 
-<!-- ══ OPERATION MODALS ══ -->
+<!-- ══ SETTINGS SHEET ══ -->
+<div class="settings-overlay" id="settingsOverlay" onclick="closeSettings()"></div>
+<div class="settings-sheet" id="settingsSheet">
+  <div class="options-handle"></div>
+  <div class="options-header">
+    <span class="options-title">Settings</span>
+  </div>
+  <div class="settings-body">
+    <div class="settings-placeholder">
+      <div class="settings-placeholder-icon">⚙️</div>
+      <div>Settings panel</div>
+      <div style="font-size:11px;margin-top:4px;color:var(--text-secondary)">Coming soon</div>
+    </div>
+  </div>
+</div>
 
 <!-- ══ MAP OVERLAY ══ -->
 <div class="map-overlay" id="mapOverlay" style="display:none">
@@ -365,7 +593,6 @@
       </button>
     </div>
   </nav>
-
   <div class="map-tabs">
     <button class="map-tab active" onclick="switchMapTab('list',this)">
       <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -380,9 +607,7 @@
       Import / Export
     </button>
   </div>
-
   <div class="map-body">
-
     <div class="map-panel active" id="mpanel-list">
       <div class="base-word-card">
         <button class="base-card-edit" onclick="showToast('Edit base word…')">🔧</button>
@@ -430,7 +655,6 @@
         </div>
       </div>
     </div>
-
     <div class="map-panel" id="mpanel-change">
       <div class="ref-count-bar"><span class="ref-count">1 change this session</span></div>
       <div class="change-row">
@@ -447,7 +671,6 @@
         <div style="font-size:11px;margin-top:4px;color:var(--text-secondary)">Changes you make in List will appear here</div>
       </div>
     </div>
-
     <div class="map-panel" id="mpanel-ie">
       <div class="ie-section">
         <div class="ie-header"><span class="ie-title">Export References</span></div>
@@ -474,7 +697,6 @@
         </div>
       </div>
     </div>
-
   </div>
 </div>
 
@@ -484,29 +706,31 @@
     <span class="sidebar-title">Map Operations</span>
     <button class="sidebar-close" onclick="closeMapMenu()">✕</button>
   </div>
-  <div class="sidebar-section-label">Actions</div>
-  <button class="menu-item" onclick="closeMapMenu();mapSaveAll()">
-    <div class="menu-icon" style="background:rgba(42,140,126,.2);color:var(--ant-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
-    <div><div class="menu-label">Save All</div><div class="menu-desc">Queue all changes to Commits</div></div>
-  </button>
-  <button class="menu-item" onclick="closeMapMenu();showToast('↻ Syncing with DB…')">
-    <div class="menu-icon" style="background:rgba(91,155,213,.2);color:var(--def-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></div>
-    <div><div class="menu-label">Sync</div><div class="menu-desc">Refresh refwords from DB</div></div>
-  </button>
-  <button class="menu-item" onclick="closeMapMenu();deleteMapSelected()">
-    <div class="menu-icon" style="background:rgba(198,40,40,.2);color:#ef9a9a"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg></div>
-    <div><div class="menu-label">Delete</div><div class="menu-desc">Delete selected references</div></div>
-  </button>
-  <div class="sidebar-divider"></div>
-  <div class="sidebar-section-label">Lookup</div>
-  <button class="menu-item" onclick="toggleMapLookup()">
-    <div class="menu-icon" style="background:rgba(212,151,59,.15);color:var(--accent-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
-    <div><div class="menu-label">Lookup</div><div class="menu-desc">Show selected word details here</div></div>
-  </button>
-  <div class="lookup-panel" id="mapLookupPanel">
-    <div class="lookup-word" id="mapLookupWord">—</div>
-    <div class="lookup-meta" id="mapLookupMeta">—</div>
-    <div class="lookup-def" id="mapLookupDef">—</div>
+  <div style="padding: 0 6px;">
+    <div class="sidebar-section-label">Actions</div>
+    <button class="menu-item" onclick="closeMapMenu();mapSaveAll()">
+      <div class="menu-icon" style="background:rgba(42,140,126,.2);color:var(--ant-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div><div class="menu-label">Save All</div><div class="menu-desc">Queue all changes to Commits</div></div>
+    </button>
+    <button class="menu-item" onclick="closeMapMenu();showToast('↻ Syncing with DB…')">
+      <div class="menu-icon" style="background:rgba(91,155,213,.2);color:var(--def-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></div>
+      <div><div class="menu-label">Sync</div><div class="menu-desc">Refresh refwords from DB</div></div>
+    </button>
+    <button class="menu-item" onclick="closeMapMenu();deleteMapSelected()">
+      <div class="menu-icon" style="background:rgba(198,40,40,.2);color:#ef9a9a"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg></div>
+      <div><div class="menu-label">Delete</div><div class="menu-desc">Delete selected references</div></div>
+    </button>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section-label">Lookup</div>
+    <button class="menu-item" onclick="toggleMapLookup()">
+      <div class="menu-icon" style="background:rgba(212,151,59,.15);color:var(--accent-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+      <div><div class="menu-label">Lookup</div><div class="menu-desc">Show selected word details here</div></div>
+    </button>
+    <div class="lookup-panel" id="mapLookupPanel">
+      <div class="lookup-word" id="mapLookupWord">—</div>
+      <div class="lookup-meta" id="mapLookupMeta">—</div>
+      <div class="lookup-def" id="mapLookupDef">—</div>
+    </div>
   </div>
 </div>
 
