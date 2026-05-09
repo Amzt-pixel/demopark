@@ -7,137 +7,212 @@
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../core/style.css">
 <style>
-  /* ── Tooltip ── */
-  [data-tip] { position: relative; }
-  [data-tip]::after {
-    content: attr(data-tip);
-    position: absolute;
-    bottom: -26px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(27,46,75,.95);
-    color: rgba(255,255,255,.85);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: .3px;
-    padding: 3px 8px;
-    border-radius: 5px;
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity .15s;
-    z-index: 999;
-  }
-  [data-tip]:hover::after { opacity: 1; }
+/* ── Tooltip ── */
+[data-tip] { position: relative; }
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute; bottom: -26px; left: 50%; transform: translateX(-50%);
+  background: rgba(27,46,75,.95); color: rgba(255,255,255,.85);
+  font-size: 10px; font-weight: 600; letter-spacing: .3px;
+  padding: 3px 8px; border-radius: 5px; white-space: nowrap;
+  pointer-events: none; opacity: 0; transition: opacity .15s; z-index: 999;
+}
+[data-tip]:hover::after { opacity: 1; }
 
-  /* ── Filter btn (left of search) ── */
-  .filter-btn {
-    width: 36px; height: 36px;
-    border-radius: 10px;
-    border: 1.5px solid var(--border);
-    background: var(--surface);
-    color: var(--text-secondary);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; transition: all .15s;
-    flex-shrink: 0;
-    box-shadow: var(--shadow);
-  }
-  .filter-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
-  .filter-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+/* ── Filter btn ── */
+.filter-btn {
+  width: 36px; height: 36px; border-radius: 10px;
+  border: 1.5px solid var(--border); background: var(--surface);
+  color: var(--text-secondary); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s; flex-shrink: 0; box-shadow: var(--shadow);
+}
+.filter-btn:hover, .filter-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
 
-  /* ── Search row wrapper ── */
-  .view-search-row { display: flex; gap: 8px; align-items: center; }
+/* ── Tile redesign ── */
+.word-tile {
+  border-radius: 10px !important;
+  overflow: hidden;
+}
+.word-tile.selected {
+  background: #FDF3E3 !important;
+  border-top-color: transparent !important;
+  border-bottom-color: transparent !important;
+  box-shadow: 0 2px 16px rgba(212,151,59,.18) !important;
+}
+/* Boost left border on selected */
+.word-tile.selected { border-left-width: 4px !important; }
 
-  /* ── Word list sidebar (Create tab) — wider ── */
-  .sidebar-wide {
-    position: fixed; top: 0; right: 0; bottom: 0;
-    width: 300px;
-    background: var(--navy);
-    z-index: 201;
-    transform: translateX(100%);
-    transition: transform .25s ease;
-    overflow-y: auto;
-    display: flex; flex-direction: column;
-  }
-  .sidebar-wide.open { transform: translateX(0); }
+.tile-bookmark {
+  color: var(--accent); opacity: .75; flex-shrink: 0;
+  transition: opacity .15s;
+}
+.word-tile:hover .tile-bookmark { opacity: 1; }
 
-  .sidebar-wide .sidebar-header {
-    padding: 14px 18px 11px;
-    border-bottom: 1px solid rgba(255,255,255,.1);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  .sidebar-wide .sidebar-body { padding: 12px 18px; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+/* NumId chip — dark, attention-drawing */
+.tile-numid-chip {
+  font-family: 'DM Mono', 'Fira Mono', monospace;
+  font-size: 10px; font-weight: 700;
+  background: var(--navy); color: var(--accent-light);
+  padding: 3px 7px; border-radius: 4px;
+  letter-spacing: .5px; flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,.06);
+  box-shadow: 0 1px 4px rgba(27,46,75,.25);
+}
+.tile-numid-chip.warn {
+  background: var(--warn-bg); color: var(--warn);
+  border-color: var(--warn-border);
+}
 
-  /* Word list search inside sidebar */
-  .wl-search-wrap { position: relative; }
-  .wl-search {
-    width: 100%; padding: 9px 34px 9px 12px;
-    border-radius: 9px; border: 1.5px solid rgba(255,255,255,.12);
-    background: rgba(255,255,255,.07);
-    color: #fff; font-size: 12px; outline: none;
-    transition: border-color .2s; font-family: 'DM Sans', sans-serif;
-  }
-  .wl-search::placeholder { color: rgba(255,255,255,.3); }
-  .wl-search:focus { border-color: var(--accent); }
-  .wl-search-icon {
-    position: absolute; right: 10px; top: 50%;
-    transform: translateY(-50%);
-    color: rgba(255,255,255,.3); pointer-events: none;
-  }
+/* ── Word List Sidebar — wider ── */
+.sidebar-wide {
+  position: fixed; top: 0; right: 0; bottom: 0; width: 360px;
+  background: var(--navy); z-index: 201;
+  transform: translateX(100%); transition: transform .25s ease;
+  overflow-y: auto; display: flex; flex-direction: column;
+}
+.sidebar-wide.open { transform: translateX(0); }
+.sidebar-wide .sidebar-header {
+  padding: 14px 18px 11px; border-bottom: 1px solid rgba(255,255,255,.1);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.sidebar-wide .sidebar-body { padding: 12px 18px; flex: 1; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
 
-  /* Word list filter chips */
-  .wl-chips { display: flex; flex-wrap: wrap; gap: 5px; }
-  .wl-chip {
-    padding: 4px 10px; border-radius: 999px;
-    border: 1.5px solid rgba(255,255,255,.12);
-    background: rgba(255,255,255,.05);
-    font-size: 10px; font-weight: 600;
-    color: rgba(255,255,255,.45);
-    cursor: pointer; transition: all .15s;
-  }
-  .wl-chip:hover { border-color: var(--accent-light); color: var(--accent-light); }
-  .wl-chip.active { border-color: var(--accent); background: rgba(212,151,59,.15); color: var(--accent-light); }
+/* WL search */
+.wl-search-wrap { position: relative; }
+.wl-search {
+  width: 100%; padding: 9px 34px 9px 12px; border-radius: 9px;
+  border: 1.5px solid rgba(255,255,255,.12); background: rgba(255,255,255,.07);
+  color: #fff; font-size: 12px; outline: none; transition: border-color .2s;
+  font-family: 'DM Sans', sans-serif;
+}
+.wl-search::placeholder { color: rgba(255,255,255,.3); }
+.wl-search:focus { border-color: var(--accent); }
+.wl-search-icon { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,.3); pointer-events: none; }
 
-  /* Word list items */
-  .wl-list { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; flex: 1; overflow-y: auto; }
-  .wl-item {
-    display: flex; align-items: center; gap: 9px;
-    padding: 9px 11px; border-radius: 9px;
-    border: 1px solid rgba(255,255,255,.08);
-    background: rgba(255,255,255,.04);
-    cursor: pointer; transition: all .15s;
-    user-select: none;
-  }
-  .wl-item:hover { border-color: var(--accent-light); background: rgba(212,151,59,.08); }
-  .wl-item-word { font-family: 'Lora', serif; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.9); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .wl-item-meta { font-size: 9px; color: rgba(255,255,255,.35); margin-top: 2px; }
-  .wl-item-badge { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 999px; flex-shrink: 0; }
-  .wl-count { font-size: 10px; color: rgba(255,255,255,.3); font-weight: 500; padding: 0 2px; }
+/* WL filter row — category chips + divider + toggle buttons */
+.wl-filter-row {
+  display: flex; align-items: center; gap: 6px; flex-wrap: nowrap;
+}
+.wl-cat-chip {
+  padding: 4px 9px; border-radius: 5px;
+  border: 1.5px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05);
+  font-size: 10px; font-weight: 600; color: rgba(255,255,255,.45);
+  cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.wl-cat-chip:hover { border-color: var(--accent-light); color: var(--accent-light); }
+.wl-cat-chip.active { border-color: var(--accent); background: rgba(212,151,59,.15); color: var(--accent-light); }
 
-  /* Settings bottom sheet */
-  .settings-sheet {
-    position: fixed; bottom: 0; left: 50%;
-    transform: translateX(-50%) translateY(100%);
-    width: 100%; max-width: 430px;
-    background: var(--surface);
-    border-radius: 24px 24px 0 0;
-    z-index: 201;
-    max-height: 75vh; overflow-y: auto;
-    transition: transform .25s ease;
-    box-shadow: 0 -4px 30px rgba(0,0,0,.15);
-  }
-  .settings-sheet.open { transform: translateX(-50%) translateY(0); }
-  .settings-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,.4);
-    z-index: 200; opacity: 0; pointer-events: none; transition: opacity .25s;
-  }
-  .settings-overlay.open { opacity: 1; pointer-events: all; }
-  .settings-body { padding: 14px 20px 36px; display: flex; flex-direction: column; gap: 16px; }
-  .settings-placeholder {
-    text-align: center; padding: 40px 20px;
-    color: var(--text-secondary); font-size: 13px;
-  }
-  .settings-placeholder-icon { font-size: 32px; margin-bottom: 10px; }
+/* Left border on cat chips instead of pill color */
+.wl-cat-chip[data-cat="word"]    { border-left: 3px solid #E05C6A; }
+.wl-cat-chip[data-cat="idiom"]   { border-left: 3px solid #8B6FBF; }
+.wl-cat-chip[data-cat="phrasal"] { border-left: 3px solid #D4813A; }
+
+.wl-divider { width: 1px; height: 22px; background: rgba(255,255,255,.12); flex-shrink: 0; }
+
+/* Toggle buttons */
+.wl-toggle-btn {
+  width: 30px; height: 30px; border-radius: 7px;
+  border: 1.5px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.05);
+  color: rgba(255,255,255,.45);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s; flex-shrink: 0;
+}
+.wl-toggle-btn:hover { border-color: rgba(255,255,255,.3); color: rgba(255,255,255,.8); }
+.wl-toggle-btn.wl-toggle-active { border-color: var(--accent); background: rgba(212,151,59,.15); color: var(--accent-light); }
+
+/* WL count */
+.wl-count { font-size: 10px; color: rgba(255,255,255,.3); font-weight: 500; padding: 0 2px; }
+
+/* WL list */
+.wl-list { display: flex; flex-direction: column; gap: 5px; flex: 1; overflow-y: auto; }
+.wl-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 11px; border-radius: 8px;
+  border-top: 1px solid rgba(255,255,255,.06);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.04);
+  cursor: pointer; transition: all .15s; user-select: none;
+}
+.wl-item:hover { background: rgba(212,151,59,.08); }
+.wl-item-word { font-family: 'Lora', serif; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.9); flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* NumId chip inside word list */
+.wl-numid-chip {
+  font-family: monospace; font-size: 9px; font-weight: 700;
+  background: rgba(255,255,255,.08); color: var(--accent-light);
+  padding: 2px 6px; border-radius: 3px; flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,.08);
+}
+
+/* ── Form Op Card (static frozen) ── */
+.form-op-card {
+  background: var(--navy); border-radius: 12px;
+  padding: 13px 15px; margin-bottom: 14px;
+  border: 1px solid rgba(255,255,255,.07);
+  box-shadow: var(--shadow-md); position: relative; overflow: hidden;
+}
+.form-op-card::before {
+  content: ''; position: absolute; top: -16px; right: -16px;
+  width: 64px; height: 64px; border-radius: 50%;
+  background: rgba(255,255,255,.03);
+}
+.op-card-mode {
+  font-size: 9px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; margin-bottom: 2px;
+}
+.op-card-desc {
+  font-size: 10px; color: rgba(255,255,255,.35); margin-bottom: 10px; line-height: 1.4;
+}
+.op-card-word-row { display: flex; align-items: baseline; gap: 8px; }
+.op-card-word {
+  font-family: 'Lora', serif; font-size: 18px; font-weight: 700;
+  color: var(--accent-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.op-card-numid {
+  font-family: monospace; font-size: 11px; font-weight: 700;
+  background: rgba(255,255,255,.1); color: rgba(255,255,255,.6);
+  padding: 3px 7px; border-radius: 4px; flex-shrink: 0;
+}
+
+/* ── References Card ── */
+.form-refs-card {
+  background: var(--surface); border-radius: 12px;
+  border: 1px solid var(--border); box-shadow: var(--shadow);
+  padding: 12px 14px; margin-bottom: 14px;
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.refs-card-left { display: flex; align-items: center; gap: 8px; }
+.refs-card-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.refs-card-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--text-secondary); }
+.refs-card-status { font-size: 12px; font-weight: 600; color: var(--text); margin-top: 1px; }
+.refs-card-btn {
+  padding: 7px 12px; border-radius: 8px; border: none;
+  background: var(--navy); color: var(--accent-light);
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  transition: all .15s; white-space: nowrap; flex-shrink: 0;
+}
+.refs-card-btn:hover { background: var(--navy-light); }
+
+/* ── Settings sheet ── */
+.settings-sheet {
+  position: fixed; bottom: 0; left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: 100%; max-width: 430px; background: var(--surface);
+  border-radius: 24px 24px 0 0; z-index: 201;
+  max-height: 75vh; overflow-y: auto; transition: transform .25s ease;
+  box-shadow: 0 -4px 30px rgba(0,0,0,.15);
+}
+.settings-sheet.open { transform: translateX(-50%) translateY(0); }
+.settings-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.4);
+  z-index: 200; opacity: 0; pointer-events: none; transition: opacity .25s;
+}
+.settings-overlay.open { opacity: 1; pointer-events: all; }
+.settings-body { padding: 14px 20px 36px; display: flex; flex-direction: column; gap: 16px; }
+.settings-placeholder { text-align: center; padding: 40px 20px; color: var(--text-secondary); font-size: 13px; }
+.settings-placeholder-icon { font-size: 32px; margin-bottom: 10px; }
 </style>
 </head>
 <body>
@@ -186,54 +261,25 @@
       <div class="sync-label" id="syncLabel">Not synced</div>
     </div>
     <div class="nav-right">
-
-      <!-- Settings — always visible -->
+      <!-- Settings -->
       <button class="nav-btn" id="settingsBtn" data-tip="Settings" onclick="openSettings()">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="3"/>
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
-
-      <!-- Dynamic middle button — swaps per tab -->
-      <!-- View tab: Actions (⋯) -->
+      <!-- Dynamic middle button -->
       <button class="nav-btn" id="navActionsBtn" data-tip="Actions" onclick="openMenu()" style="display:flex">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
-          <circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/>
-          <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
-          <circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/>
-        </svg>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>
       </button>
-      <!-- Create tab: Word List -->
       <button class="nav-btn" id="navWordListBtn" data-tip="Word List" onclick="openWordListSidebar()" style="display:none">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/>
-          <line x1="8" y1="18" x2="21" y2="18"/>
-          <circle cx="3" cy="6" r="1" fill="currentColor" stroke="none"/>
-          <circle cx="3" cy="12" r="1" fill="currentColor" stroke="none"/>
-          <circle cx="3" cy="18" r="1" fill="currentColor" stroke="none"/>
-        </svg>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="3" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="3" cy="18" r="1" fill="currentColor" stroke="none"/></svg>
       </button>
-      <!-- Transport tab: Import list (placeholder, no sidebar yet) -->
       <button class="nav-btn" id="navTransportListBtn" data-tip="File List" onclick="showToast('File list — coming soon')" style="display:none">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10 9 9 9 8 9"/>
-        </svg>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
       </button>
-
-      <!-- Commits — always visible -->
+      <!-- Commits -->
       <button class="nav-btn commit-btn" data-tip="Commits" onclick="goToCommits()">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="4"/>
-          <line x1="1.05" y1="12" x2="7" y2="12"/>
-          <line x1="17.01" y1="12" x2="22.96" y2="12"/>
-        </svg>
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>
         <span class="commit-badge" id="commitBadge" style="display:none">0</span>
       </button>
-
     </div>
   </nav>
 
@@ -257,11 +303,8 @@
     <!-- VIEW TAB -->
     <div class="crud-panel active" id="panel-view">
       <div class="view-controls">
-        <!-- Filter button left of search -->
         <button class="filter-btn" id="filterBtn" data-tip="Filter" onclick="openOptions()">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-          </svg>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
         </button>
         <div class="view-search-wrap">
           <input class="view-search" type="text" placeholder="Search words…" oninput="filterView(this.value)"/>
@@ -282,10 +325,32 @@
 
     <!-- FORM TAB -->
     <div class="crud-panel" id="panel-form">
-      <div id="formOpHeader" style="display:none;margin-bottom:14px;">
-        <span class="op-badge" id="formOpBadge"></span>
-        <div class="modal-subtitle" id="formOpSubtitle" style="margin-top:6px;margin-bottom:0;font-size:11px;color:var(--text-secondary)"></div>
+
+      <!-- Static frozen op card -->
+      <div class="form-op-card" id="formOpCard" style="display:none">
+        <div class="op-card-mode" id="opCardMode">EDIT</div>
+        <div class="op-card-desc" id="opCardDesc">Full edit — all fields modifiable</div>
+        <div class="op-card-word-row">
+          <span class="op-card-word" id="opCardWord">—</span>
+          <span class="op-card-numid" id="opCardNumid">—</span>
+        </div>
       </div>
+
+      <!-- References card -->
+      <div class="form-refs-card" id="formRefsCard" style="display:none">
+        <div class="refs-card-left">
+          <div class="refs-card-dot" id="refCardDot"></div>
+          <div>
+            <div class="refs-card-label">References</div>
+            <div class="refs-card-status" id="refCardStatus">No references</div>
+          </div>
+        </div>
+        <button class="refs-card-btn" onclick="openMapFromForm()">
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Open Map
+        </button>
+      </div>
+
       <div class="form-section">
         <div class="form-section-header"><span class="form-section-title">Core</span></div>
         <div class="form-section-body">
@@ -420,7 +485,6 @@
     <div class="hold-popup-word" id="popupWord">Proclivity</div>
     <div class="hold-popup-meta" id="popupMeta">Word · NumId 1.0</div>
     <div class="hold-popup-def" id="popupDef">A tendency to choose or do something regularly.</div>
-    <div class="hold-popup-syns"><span class="hold-popup-syn">Propensity</span><span class="hold-popup-syn">Tendency</span></div>
     <div class="hold-popup-actions">
       <button class="hold-popup-btn hold-popup-close" onclick="closeHoldPopup()">Close</button>
       <button class="hold-popup-btn hold-popup-edit" onclick="closeHoldPopup();openFormOp('edit')">Edit</button>
@@ -428,7 +492,7 @@
   </div>
 </div>
 
-<!-- ══ SIDEBAR OVERLAY (shared) ══ -->
+<!-- ══ SIDEBAR OVERLAY ══ -->
 <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeAllSidebars()"></div>
 
 <!-- ══ SIDEBAR 1: ACTIONS (View tab) ══ -->
@@ -437,52 +501,25 @@
     <span class="sidebar-title">Operations</span>
     <button class="sidebar-close" onclick="closeAllSidebars()">✕</button>
   </div>
-  <div style="padding: 0 6px;">
+  <div style="padding:0 6px">
     <div class="sidebar-section-label">Word Operations</div>
-    <button class="menu-item" id="menuCreate" onclick="closeAllSidebars();openFormOp('create')">
-      <div class="menu-icon mi-add"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
-      <div class="menu-text"><div class="menu-label">Create</div><div class="menu-desc">New word — standalone entry</div></div>
-    </button>
-    <button class="menu-item" id="menuAdd" onclick="closeAllSidebars();openFormOp('add')">
-      <div class="menu-icon mi-add"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
-      <div class="menu-text"><div class="menu-label">Add</div><div class="menu-desc">New word in same NumId group</div></div>
-    </button>
-    <button class="menu-item" id="menuEdit" onclick="closeAllSidebars();openFormOp('edit')">
-      <div class="menu-icon mi-edit"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
-      <div class="menu-text"><div class="menu-label">Edit</div><div class="menu-desc">Full form — all fields</div></div>
-    </button>
-    <button class="menu-item" id="menuUpdate" onclick="closeAllSidebars();openFormOp('update')">
-      <div class="menu-icon mi-update"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
-      <div class="menu-text"><div class="menu-label">Update</div><div class="menu-desc">Non-essential fields only</div></div>
-    </button>
-    <button class="menu-item" id="menuRename" onclick="closeAllSidebars();openFormOp('rename')">
-      <div class="menu-icon mi-rename"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div>
-      <div class="menu-text"><div class="menu-label">Rename</div><div class="menu-desc">Change the word string</div></div>
-    </button>
-    <button class="menu-item" id="menuRegroup" onclick="closeAllSidebars();openFormOp('regroup')">
-      <div class="menu-icon mi-regroup"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
-      <div class="menu-text"><div class="menu-label">Regroup</div><div class="menu-desc">Change NumId — move word group</div></div>
-    </button>
+    <button class="menu-item" id="menuCreate"  onclick="closeAllSidebars();openFormOp('create')"><div class="menu-icon mi-add"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><div class="menu-text"><div class="menu-label">Create</div><div class="menu-desc">New word — standalone entry</div></div></button>
+    <button class="menu-item" id="menuAdd"     onclick="closeAllSidebars();openFormOp('add')"><div class="menu-icon mi-add"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div><div class="menu-text"><div class="menu-label">Add</div><div class="menu-desc">New word in same NumId group</div></div></button>
+    <button class="menu-item" id="menuEdit"    onclick="closeAllSidebars();openFormOp('edit')"><div class="menu-icon mi-edit"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div><div class="menu-text"><div class="menu-label">Edit</div><div class="menu-desc">Full form — all fields</div></div></button>
+    <button class="menu-item" id="menuUpdate"  onclick="closeAllSidebars();openFormOp('update')"><div class="menu-icon mi-update"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div class="menu-text"><div class="menu-label">Update</div><div class="menu-desc">Non-essential fields only</div></div></button>
+    <button class="menu-item" id="menuRename"  onclick="closeAllSidebars();openFormOp('rename')"><div class="menu-icon mi-rename"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg></div><div class="menu-text"><div class="menu-label">Rename</div><div class="menu-desc">Change the word string</div></div></button>
+    <button class="menu-item" id="menuRegroup" onclick="closeAllSidebars();openFormOp('regroup')"><div class="menu-icon mi-regroup"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div><div class="menu-text"><div class="menu-label">Regroup</div><div class="menu-desc">Change NumId — move word group</div></div></button>
     <div class="sidebar-divider"></div>
     <div class="sidebar-section-label">References</div>
-    <button class="menu-item" id="menuMapBtn" onclick="closeAllSidebars();openMapPanel()">
-      <div class="menu-icon mi-map"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
-      <div class="menu-text"><div class="menu-label">Map</div><div class="menu-desc" id="mapMenuDesc">Select a word first</div></div>
-    </button>
+    <button class="menu-item" id="menuMapBtn" onclick="closeAllSidebars();openMapPanel()"><div class="menu-icon mi-map"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div><div class="menu-text"><div class="menu-label">Map</div><div class="menu-desc" id="mapMenuDesc">Select a word first</div></div></button>
     <div class="sidebar-divider"></div>
     <div class="sidebar-section-label">Status</div>
-    <button class="menu-item" id="menuDisable" onclick="closeAllSidebars();openFormOp('disable')">
-      <div class="menu-icon mi-disable"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
-      <div class="menu-text"><div class="menu-label">Disable</div><div class="menu-desc">Toggle active — hide word everywhere</div></div>
-    </button>
-    <button class="menu-item" id="menuTrash" onclick="closeAllSidebars();openFormOp('trash')">
-      <div class="menu-icon mi-trash"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg></div>
-      <div class="menu-text"><div class="menu-label">Trash</div><div class="menu-desc">Set NumId → 0, word becomes invalid</div></div>
-    </button>
+    <button class="menu-item" id="menuDisable" onclick="closeAllSidebars();openFormOp('disable')"><div class="menu-icon mi-disable"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div><div class="menu-text"><div class="menu-label">Disable</div><div class="menu-desc">Toggle active — hide word everywhere</div></div></button>
+    <button class="menu-item" id="menuTrash"   onclick="closeAllSidebars();openFormOp('trash')"><div class="menu-icon mi-trash"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg></div><div class="menu-text"><div class="menu-label">Trash</div><div class="menu-desc">Set NumId → 0, word becomes invalid</div></div></button>
   </div>
 </div>
 
-<!-- ══ SIDEBAR 2: WORD LIST (Create tab) ══ -->
+<!-- ══ SIDEBAR 2: WORD LIST (Form tab) — 360px wide ══ -->
 <div class="sidebar-wide" id="wordListSidebar">
   <div class="sidebar-header">
     <span class="sidebar-title">Word List</span>
@@ -494,12 +531,25 @@
       <input class="wl-search" id="wlSearch" type="text" placeholder="Search words…" oninput="filterWordList(this.value)"/>
       <svg class="wl-search-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
-    <!-- Filter chips -->
-    <div class="wl-chips" id="wlChips">
-      <div class="wl-chip active" data-wl="all"     onclick="toggleWlChip(this)">All</div>
-      <div class="wl-chip"        data-wl="word"    onclick="toggleWlChip(this)">Words</div>
-      <div class="wl-chip"        data-wl="idiom"   onclick="toggleWlChip(this)">Idioms</div>
-      <div class="wl-chip"        data-wl="phrasal" onclick="toggleWlChip(this)">Phrasal</div>
+    <!-- Filter row: cat chips + divider + 3 toggle buttons -->
+    <div class="wl-filter-row" id="wlCatChips">
+      <div class="wl-cat-chip active" data-cat="all"     onclick="toggleWlCatChip(this)">All</div>
+      <div class="wl-cat-chip"        data-cat="word"    onclick="toggleWlCatChip(this)">Word</div>
+      <div class="wl-cat-chip"        data-cat="idiom"   onclick="toggleWlCatChip(this)">Idiom</div>
+      <div class="wl-cat-chip"        data-cat="phrasal" onclick="toggleWlCatChip(this)">Phrasal</div>
+      <div class="wl-divider"></div>
+      <!-- Group toggle -->
+      <button class="wl-toggle-btn" id="wlGroupBtn" title="All groups" onclick="cycleWlGroup()">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+      </button>
+      <!-- Isolation toggle -->
+      <button class="wl-toggle-btn" id="wlIsolationBtn" title="All words" onclick="cycleWlIsolation()">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+      </button>
+      <!-- Status toggle -->
+      <button class="wl-toggle-btn" id="wlStatusBtn" title="All statuses" onclick="cycleWlStatus()">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+      </button>
     </div>
     <!-- Count -->
     <div class="wl-count" id="wlCount">0 words</div>
@@ -523,28 +573,31 @@
   </div>
   <div class="options-body">
     <div><div class="opt-group-label">Category</div><div class="opt-chips" id="filterCategory">
-        <div class="opt-chip active" data-value="all"     onclick="toggleChip(this)">All</div>
-        <div class="opt-chip"        data-value="word"    onclick="toggleChip(this)">Words</div>
-        <div class="opt-chip"        data-value="idiom"   onclick="toggleChip(this)">Idioms</div>
-        <div class="opt-chip"        data-value="phrasal" onclick="toggleChip(this)">Phrasal</div>
-      </div></div>
+      <div class="opt-chip active" data-value="all"     onclick="toggleChip(this)">All</div>
+      <div class="opt-chip"        data-value="word"    onclick="toggleChip(this)">Words</div>
+      <div class="opt-chip"        data-value="idiom"   onclick="toggleChip(this)">Idioms</div>
+      <div class="opt-chip"        data-value="phrasal" onclick="toggleChip(this)">Phrasal</div>
+    </div></div>
     <div><div class="opt-group-label">Label</div><div class="opt-chips" id="filterUsage">
-        <div class="opt-chip active" data-value="all"        onclick="toggleChip(this)">All</div>
-        <div class="opt-chip"        data-value="common"     onclick="toggleChip(this)">Common</div>
-        <div class="opt-chip"        data-value="unique"     onclick="toggleChip(this)">Unique</div>
-        <div class="opt-chip"        data-value="specific"   onclick="toggleChip(this)">Specific</div>
-        <div class="opt-chip"        data-value="colloquial" onclick="toggleChip(this)">Colloquial</div>
-      </div></div>
+      <div class="opt-chip active" data-value="all"        onclick="toggleChip(this)">All</div>
+      <div class="opt-chip"        data-value="common"     onclick="toggleChip(this)">Common</div>
+      <div class="opt-chip"        data-value="unique"     onclick="toggleChip(this)">Unique</div>
+      <div class="opt-chip"        data-value="specific"   onclick="toggleChip(this)">Specific</div>
+      <div class="opt-chip"        data-value="colloquial" onclick="toggleChip(this)">Colloquial</div>
+    </div></div>
     <div><div class="opt-group-label">Conditions</div><div class="opt-chips" id="filterConditions">
-        <div class="opt-chip"             data-cond="onlyDefs"       onclick="toggleChip(this)">Only Definitions</div>
-        <div class="opt-chip ant-chip"    data-cond="isolated"       onclick="toggleChip(this)">Isolated</div>
-        <div class="opt-chip"             data-cond="reviewNote"     onclick="toggleChip(this)">Review Note</div>
-        <div class="opt-chip danger-chip" data-cond="invalid"        onclick="toggleChip(this)">Invalid</div>
-        <div class="opt-chip danger-chip" data-cond="inactive"       onclick="toggleChip(this)">Inactive</div>
-        <div class="opt-chip"             data-cond="hasTranslation" onclick="toggleChip(this)">Has Translation</div>
-        <div class="opt-chip ant-chip"    data-cond="noExamples"     onclick="toggleChip(this)">No Examples</div>
-      </div></div>
-    <div><div class="opt-group-label">NumId Range</div><div class="form-row" style="gap:8px"><input class="form-input" id="filterNumidMin" type="number" placeholder="Min" style="font-size:12px;padding:8px 11px"/><input class="form-input" id="filterNumidMax" type="number" placeholder="Max" style="font-size:12px;padding:8px 11px"/></div></div>
+      <div class="opt-chip"             data-cond="onlyDefs"       onclick="toggleChip(this)">Only Definitions</div>
+      <div class="opt-chip ant-chip"    data-cond="isolated"       onclick="toggleChip(this)">Isolated</div>
+      <div class="opt-chip"             data-cond="reviewNote"     onclick="toggleChip(this)">Review Note</div>
+      <div class="opt-chip danger-chip" data-cond="invalid"        onclick="toggleChip(this)">Invalid</div>
+      <div class="opt-chip danger-chip" data-cond="inactive"       onclick="toggleChip(this)">Inactive</div>
+      <div class="opt-chip"             data-cond="hasTranslation" onclick="toggleChip(this)">Has Translation</div>
+      <div class="opt-chip ant-chip"    data-cond="noExamples"     onclick="toggleChip(this)">No Examples</div>
+    </div></div>
+    <div><div class="opt-group-label">NumId Range</div><div class="form-row" style="gap:8px">
+      <input class="form-input" id="filterNumidMin" type="number" placeholder="Min" style="font-size:12px;padding:8px 11px"/>
+      <input class="form-input" id="filterNumidMax" type="number" placeholder="Max" style="font-size:12px;padding:8px 11px"/>
+    </div></div>
     <div>
       <div class="opt-group-label">Sort By</div>
       <div class="sort-option active" data-sort="word_asc"    onclick="selectSort(this)"><div class="sort-dot"></div><span class="sort-option-label">Word A → Z</span></div>
@@ -565,9 +618,7 @@
 <div class="settings-overlay" id="settingsOverlay" onclick="closeSettings()"></div>
 <div class="settings-sheet" id="settingsSheet">
   <div class="options-handle"></div>
-  <div class="options-header">
-    <span class="options-title">Settings</span>
-  </div>
+  <div class="options-header"><span class="options-title">Settings</span></div>
   <div class="settings-body">
     <div class="settings-placeholder">
       <div class="settings-placeholder-icon">⚙️</div>
@@ -581,31 +632,17 @@
 <div class="map-overlay" id="mapOverlay" style="display:none">
   <nav class="navbar">
     <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0;">
-      <button class="nav-back" onclick="closeMapPanel()">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
+      <button class="nav-back" onclick="closeMapPanel()"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
       <div style="font-family:'Lora',serif;font-size:13px;font-weight:700;color:var(--accent-light);letter-spacing:.3px;">Map · References</div>
     </div>
     <div class="nav-right">
-      <button class="nav-btn" onclick="openMapMenu()">
-        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-        Menu
-      </button>
+      <button class="nav-btn" onclick="openMapMenu()"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> Menu</button>
     </div>
   </nav>
   <div class="map-tabs">
-    <button class="map-tab active" onclick="switchMapTab('list',this)">
-      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-      List
-    </button>
-    <button class="map-tab" onclick="switchMapTab('change',this)">
-      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      Change
-    </button>
-    <button class="map-tab" onclick="switchMapTab('ie',this)">
-      <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      Import / Export
-    </button>
+    <button class="map-tab active" onclick="switchMapTab('list',this)"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> List</button>
+    <button class="map-tab" onclick="switchMapTab('change',this)"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Change</button>
+    <button class="map-tab" onclick="switchMapTab('ie',this)"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Import / Export</button>
   </div>
   <div class="map-body">
     <div class="map-panel active" id="mpanel-list">
@@ -621,126 +658,42 @@
         <span class="ref-selected-label" id="mapRefSelectedLabel">0 selected</span>
       </div>
       <div class="ref-list" id="mapRefList">
-        <div class="ref-row-wrap" id="mwrap-0">
-          <div class="ref-row" id="mrow-0">
-            <div class="ref-check" onclick="toggleMapRefSelect(0)">✓</div>
-            <div class="ref-row-left" onclick="toggleMapRefSelect(0)">
-              <div class="ref-word-line"><span class="ref-word">Tendency</span><span class="ref-numid">· 1.0</span></div>
-              <div class="ref-meta"><span class="ref-type-badge">coin</span><span class="ref-sep">·</span><span class="ref-conf high">High confidence</span></div>
-            </div>
-            <div class="ref-row-actions">
-              <div class="ref-del-btn" onclick="deleteMapRef(0)"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></div>
-              <div class="ref-icon-btn" onclick="toggleMapCard(0)">🔧</div>
-            </div>
-          </div>
-        </div>
-        <div class="ref-row-wrap" id="mwrap-1">
-          <div class="ref-row" id="mrow-1">
-            <div class="ref-check" onclick="toggleMapRefSelect(1)">✓</div>
-            <div class="ref-row-left" onclick="toggleMapRefSelect(1)">
-              <div class="ref-word-line"><span class="ref-word">Disposition</span><span class="ref-numid">· 2.0</span></div>
-              <div class="ref-meta"><span class="ref-type-badge" style="background:var(--def-bg);color:var(--def)">infr</span><span class="ref-sep">·</span><span class="ref-conf">Void confidence</span></div>
-            </div>
-            <div class="ref-row-actions">
-              <div class="ref-del-btn" onclick="deleteMapRef(1)"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></div>
-              <div class="ref-icon-btn" onclick="toggleMapCard(1)">🔧</div>
-            </div>
-          </div>
-        </div>
-        <div class="ref-row-wrap" id="mwrap-new">
-          <div class="ref-row empty-row" id="mrow-new" onclick="toggleMapCard('new')">
-            <div class="empty-row-icon">＋</div>
-            <span class="empty-row-label">Add new reference</span>
-          </div>
-        </div>
+        <div class="ref-row-wrap" id="mwrap-0"><div class="ref-row" id="mrow-0"><div class="ref-check" onclick="toggleMapRefSelect(0)">✓</div><div class="ref-row-left" onclick="toggleMapRefSelect(0)"><div class="ref-word-line"><span class="ref-word">Tendency</span><span class="ref-numid">· 1.0</span></div><div class="ref-meta"><span class="ref-type-badge">coin</span><span class="ref-sep">·</span><span class="ref-conf high">High confidence</span></div></div><div class="ref-row-actions"><div class="ref-del-btn" onclick="deleteMapRef(0)"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></div><div class="ref-icon-btn" onclick="toggleMapCard(0)">🔧</div></div></div></div>
+        <div class="ref-row-wrap" id="mwrap-1"><div class="ref-row" id="mrow-1"><div class="ref-check" onclick="toggleMapRefSelect(1)">✓</div><div class="ref-row-left" onclick="toggleMapRefSelect(1)"><div class="ref-word-line"><span class="ref-word">Disposition</span><span class="ref-numid">· 2.0</span></div><div class="ref-meta"><span class="ref-type-badge" style="background:var(--def-bg);color:var(--def)">infr</span><span class="ref-sep">·</span><span class="ref-conf">Void confidence</span></div></div><div class="ref-row-actions"><div class="ref-del-btn" onclick="deleteMapRef(1)"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></div><div class="ref-icon-btn" onclick="toggleMapCard(1)">🔧</div></div></div></div>
+        <div class="ref-row-wrap" id="mwrap-new"><div class="ref-row empty-row" id="mrow-new" onclick="toggleMapCard('new')"><div class="empty-row-icon">＋</div><span class="empty-row-label">Add new reference</span></div></div>
       </div>
     </div>
     <div class="map-panel" id="mpanel-change">
       <div class="ref-count-bar"><span class="ref-count">1 change this session</span></div>
-      <div class="change-row">
-        <div class="change-badge modified">Modified</div>
-        <div class="change-body">
-          <div class="change-word">Tendency <span class="change-numid">· 1.0</span></div>
-          <div class="change-detail"><span class="change-prev">infr · null</span><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg><span class="change-next">coin · High</span></div>
-        </div>
-        <div class="change-revert" onclick="showToast('↩ Reverted','warn')">↩</div>
-      </div>
-      <div class="empty-state hidden" id="mapChangeEmpty">
-        <div class="empty-state-icon">✏️</div>
-        <div>No changes yet</div>
-        <div style="font-size:11px;margin-top:4px;color:var(--text-secondary)">Changes you make in List will appear here</div>
-      </div>
+      <div class="change-row"><div class="change-badge modified">Modified</div><div class="change-body"><div class="change-word">Tendency <span class="change-numid">· 1.0</span></div><div class="change-detail"><span class="change-prev">infr · null</span><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg><span class="change-next">coin · High</span></div></div><div class="change-revert" onclick="showToast('↩ Reverted','warn')">↩</div></div>
+      <div class="empty-state hidden" id="mapChangeEmpty"><div class="empty-state-icon">✏️</div><div>No changes yet</div><div style="font-size:11px;margin-top:4px;color:var(--text-secondary)">Changes you make in List will appear here</div></div>
     </div>
     <div class="map-panel" id="mpanel-ie">
-      <div class="ie-section">
-        <div class="ie-header"><span class="ie-title">Export References</span></div>
-        <div class="ie-body">
-          <div style="font-size:12px;color:var(--text-secondary);line-height:1.5">Exports current refword changes as a matrix JSON.</div>
-          <div class="matrix-preview">
-            <table class="matrix-table">
-              <thead><tr><th>ref_word</th><th>ref_numid</th><th>p_ex</th><th>p_str</th><th>p_con</th><th>n_ex</th><th>n_str</th><th>n_con</th></tr></thead>
-              <tbody><tr><td class="td-word">Tendency</td><td class="td-code">1.0</td><td class="td-exists-1">1</td><td class="td-code">infr</td><td class="td-null">null</td><td class="td-exists-0">0</td><td class="td-null">null</td><td class="td-null">null</td></tr></tbody>
-            </table>
-          </div>
-          <button class="btn-primary" onclick="showToast('📥 Matrix exported','success')">Export Matrix JSON</button>
-        </div>
-      </div>
-      <div class="ie-section">
-        <div class="ie-header"><span class="ie-title">Import References</span></div>
-        <div class="ie-body">
-          <div style="font-size:12px;color:var(--text-secondary);line-height:1.5">Import a matrix JSON file. Validated against current DB state before applying.</div>
-          <div class="ie-drop-zone" onclick="showToast('↪ File parsed — validating…','success')">
-            <div class="ie-drop-icon">📄</div>
-            <div class="ie-drop-title" style="font-size:13px">Drop matrix JSON here</div>
-            <div class="ie-drop-sub">or <span>browse file</span></div>
-          </div>
-        </div>
-      </div>
+      <div class="ie-section"><div class="ie-header"><span class="ie-title">Export References</span></div><div class="ie-body"><div style="font-size:12px;color:var(--text-secondary);line-height:1.5">Exports current refword changes as a matrix JSON.</div><div class="matrix-preview"><table class="matrix-table"><thead><tr><th>ref_word</th><th>ref_numid</th><th>p_ex</th><th>p_str</th><th>p_con</th><th>n_ex</th><th>n_str</th><th>n_con</th></tr></thead><tbody><tr><td class="td-word">Tendency</td><td class="td-code">1.0</td><td class="td-exists-1">1</td><td class="td-code">infr</td><td class="td-null">null</td><td class="td-exists-0">0</td><td class="td-null">null</td><td class="td-null">null</td></tr></tbody></table></div><button class="btn-primary" onclick="showToast('📥 Matrix exported','success')">Export Matrix JSON</button></div></div>
+      <div class="ie-section"><div class="ie-header"><span class="ie-title">Import References</span></div><div class="ie-body"><div style="font-size:12px;color:var(--text-secondary);line-height:1.5">Import a matrix JSON file. Validated against current DB state before applying.</div><div class="ie-drop-zone" onclick="showToast('↪ File parsed — validating…','success')"><div class="ie-drop-icon">📄</div><div class="ie-drop-title" style="font-size:13px">Drop matrix JSON here</div><div class="ie-drop-sub">or <span>browse file</span></div></div></div></div>
     </div>
   </div>
 </div>
 
 <!-- Map Menu -->
 <div class="sidebar" id="mapMenuSidebar">
-  <div class="sidebar-header">
-    <span class="sidebar-title">Map Operations</span>
-    <button class="sidebar-close" onclick="closeMapMenu()">✕</button>
-  </div>
-  <div style="padding: 0 6px;">
+  <div class="sidebar-header"><span class="sidebar-title">Map Operations</span><button class="sidebar-close" onclick="closeMapMenu()">✕</button></div>
+  <div style="padding:0 6px">
     <div class="sidebar-section-label">Actions</div>
-    <button class="menu-item" onclick="closeMapMenu();mapSaveAll()">
-      <div class="menu-icon" style="background:rgba(42,140,126,.2);color:var(--ant-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div>
-      <div><div class="menu-label">Save All</div><div class="menu-desc">Queue all changes to Commits</div></div>
-    </button>
-    <button class="menu-item" onclick="closeMapMenu();showToast('↻ Syncing with DB…')">
-      <div class="menu-icon" style="background:rgba(91,155,213,.2);color:var(--def-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></div>
-      <div><div class="menu-label">Sync</div><div class="menu-desc">Refresh refwords from DB</div></div>
-    </button>
-    <button class="menu-item" onclick="closeMapMenu();deleteMapSelected()">
-      <div class="menu-icon" style="background:rgba(198,40,40,.2);color:#ef9a9a"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg></div>
-      <div><div class="menu-label">Delete</div><div class="menu-desc">Delete selected references</div></div>
-    </button>
+    <button class="menu-item" onclick="closeMapMenu();mapSaveAll()"><div class="menu-icon" style="background:rgba(42,140,126,.2);color:var(--ant-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><div><div class="menu-label">Save All</div><div class="menu-desc">Queue all changes to Commits</div></div></button>
+    <button class="menu-item" onclick="closeMapMenu();showToast('↻ Syncing with DB…')"><div class="menu-icon" style="background:rgba(91,155,213,.2);color:var(--def-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></div><div><div class="menu-label">Sync</div><div class="menu-desc">Refresh refwords from DB</div></div></button>
+    <button class="menu-item" onclick="closeMapMenu();deleteMapSelected()"><div class="menu-icon" style="background:rgba(198,40,40,.2);color:#ef9a9a"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M9 6V4h6v2"/></svg></div><div><div class="menu-label">Delete</div><div class="menu-desc">Delete selected references</div></div></button>
     <div class="sidebar-divider"></div>
     <div class="sidebar-section-label">Lookup</div>
-    <button class="menu-item" onclick="toggleMapLookup()">
-      <div class="menu-icon" style="background:rgba(212,151,59,.15);color:var(--accent-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
-      <div><div class="menu-label">Lookup</div><div class="menu-desc">Show selected word details here</div></div>
-    </button>
-    <div class="lookup-panel" id="mapLookupPanel">
-      <div class="lookup-word" id="mapLookupWord">—</div>
-      <div class="lookup-meta" id="mapLookupMeta">—</div>
-      <div class="lookup-def" id="mapLookupDef">—</div>
-    </div>
+    <button class="menu-item" onclick="toggleMapLookup()"><div class="menu-icon" style="background:rgba(212,151,59,.15);color:var(--accent-light)"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><div><div class="menu-label">Lookup</div><div class="menu-desc">Show selected word details here</div></div></button>
+    <div class="lookup-panel" id="mapLookupPanel"><div class="lookup-word" id="mapLookupWord">—</div><div class="lookup-meta" id="mapLookupMeta">—</div><div class="lookup-def" id="mapLookupDef">—</div></div>
   </div>
 </div>
 
 <!-- Map card template -->
 <template id="mapCardTemplate">
   <div class="ref-card" id="mcard-ID">
-    <div class="binding-tier" id="mtier-ID">
-      <span class="tier-dot isolated"></span>
-      <span class="tier-label" id="mtier-label-ID">Isolated word</span>
-    </div>
+    <div class="binding-tier" id="mtier-ID"><span class="tier-dot isolated"></span><span class="tier-label" id="mtier-label-ID">Isolated word</span></div>
     <div class="ref-card-section">
       <div class="ref-card-label">Referred Word <span class="req-star">*</span></div>
       <div class="ref-search-field" style="margin-bottom:7px">
@@ -749,59 +702,18 @@
         <div class="ref-dropdown" id="mdrop-word-ID"></div>
       </div>
       <div class="ref-search-row">
-        <div class="ref-search-field" style="flex:1">
-          <span class="ref-search-input-label">NumId <span style="opacity:.5;font-weight:400">(opt)</span></span>
-          <input class="ref-search-input ref-numid-input" type="number" step="0.1" placeholder="e.g. 1.0" data-field="numid" oninput="onMapFieldInput(this,'ID')"/>
-          <div class="ref-dropdown" id="mdrop-numid-ID"></div>
-        </div>
-        <div class="ref-search-field" style="flex:1">
-          <span class="ref-search-input-label">UID <span style="opacity:.5;font-weight:400">(opt)</span></span>
-          <input class="ref-search-input ref-uid-input" type="number" placeholder="e.g. 142" data-field="uid" oninput="onMapFieldInput(this,'ID')"/>
-          <div class="ref-dropdown" id="mdrop-uid-ID"></div>
-        </div>
+        <div class="ref-search-field" style="flex:1"><span class="ref-search-input-label">NumId <span style="opacity:.5;font-weight:400">(opt)</span></span><input class="ref-search-input ref-numid-input" type="number" step="0.1" placeholder="e.g. 1.0" data-field="numid" oninput="onMapFieldInput(this,'ID')"/><div class="ref-dropdown" id="mdrop-numid-ID"></div></div>
+        <div class="ref-search-field" style="flex:1"><span class="ref-search-input-label">UID <span style="opacity:.5;font-weight:400">(opt)</span></span><input class="ref-search-input ref-uid-input" type="number" placeholder="e.g. 142" data-field="uid" oninput="onMapFieldInput(this,'ID')"/><div class="ref-dropdown" id="mdrop-uid-ID"></div></div>
       </div>
     </div>
     <div class="ref-card-section">
       <div class="ref-card-label">Reference Details</div>
       <div class="ref-selects-row">
-        <div class="ref-select-wrap">
-          <span class="ref-search-input-label">Type</span>
-          <select class="ref-select">
-            <option value="">— none —</option>
-            <option value="infr">Inference (infr)</option>
-            <option value="itfr">Interference (itfr)</option>
-            <option value="revr">Reverence (revr)</option>
-            <option value="defr">Deference (defr)</option>
-            <option value="prfr">Preference (prfr)</option>
-            <option value="inhr">Inherence (inhr)</option>
-            <option value="cohr">Coherence (cohr)</option>
-            <option value="difr">Difference (difr)</option>
-            <option value="adhr">Adherence (adhr)</option>
-            <option value="cmfr">Circumference (cmfr)</option>
-            <option value="dpnc">Dependence (dpnc)</option>
-            <option value="crpc">Correspondence (crpc)</option>
-            <option value="cndc">Coincidence (cndc)</option>
-            <option value="dvgc">Divergence (dvgc)</option>
-            <option value="qntc">Quintessence (qntc)</option>
-            <option value="aqnc">Acquaintance (aqnc)</option>
-            <option value="emnc">Eminence (emnc)</option>
-            <option value="vlnc">Valence (vlnc)</option>
-          </select>
-        </div>
-        <div class="ref-select-wrap">
-          <span class="ref-search-input-label">Confidence</span>
-          <select class="ref-select">
-            <option value="null">— void —</option>
-            <option value="1">High (1)</option>
-            <option value="0">Low (0)</option>
-          </select>
-        </div>
+        <div class="ref-select-wrap"><span class="ref-search-input-label">Type</span><select class="ref-select"><option value="">— none —</option><option value="infr">Inference (infr)</option><option value="itfr">Interference (itfr)</option><option value="revr">Reverence (revr)</option><option value="defr">Deference (defr)</option><option value="prfr">Preference (prfr)</option><option value="inhr">Inherence (inhr)</option><option value="cohr">Coherence (cohr)</option><option value="difr">Difference (difr)</option><option value="adhr">Adherence (adhr)</option><option value="cmfr">Circumference (cmfr)</option><option value="dpnc">Dependence (dpnc)</option><option value="crpc">Correspondence (crpc)</option><option value="cndc">Coincidence (cndc)</option><option value="dvgc">Divergence (dvgc)</option><option value="qntc">Quintessence (qntc)</option><option value="aqnc">Acquaintance (aqnc)</option><option value="emnc">Eminence (emnc)</option><option value="vlnc">Valence (vlnc)</option></select></div>
+        <div class="ref-select-wrap"><span class="ref-search-input-label">Confidence</span><select class="ref-select"><option value="null">— void —</option><option value="1">High (1)</option><option value="0">Low (0)</option></select></div>
       </div>
     </div>
-    <div class="ref-card-actions">
-      <button class="ref-card-btn ref-card-clear" onclick="clearMapCard('ID')">Clear</button>
-      <button class="ref-card-btn ref-card-save" onclick="saveMapCard('ID')">Save</button>
-    </div>
+    <div class="ref-card-actions"><button class="ref-card-btn ref-card-clear" onclick="clearMapCard('ID')">Clear</button><button class="ref-card-btn ref-card-save" onclick="saveMapCard('ID')">Save</button></div>
   </div>
 </template>
 
