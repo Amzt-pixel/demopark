@@ -12,11 +12,15 @@ let holdFired       = false;
 let currentFilters  = {};
 let currentSort     = 'word_asc';
 let filteredList    = [];
-let activeTab       = 'view';   // tracks which tab is active
+let activeTab       = 'view';
 
 // Word list sidebar state
-let wlFilter        = 'all';
-let wlSearch        = '';
+let wlCategoryFilter = 'all';
+let wlGroupFilter    = 'all';    // all | same | diff
+let wlIsolation      = 'all';    // all | isolated | grouped
+let wlStatusFilter   = 'all';    // all | active | inactive
+let wlSearchVal      = '';
+let frozenNumId      = null;     // numId from frozen op card
 
 // Map panel state
 let mapOpenCardId   = null;
@@ -31,6 +35,13 @@ let exCount = 1;
 let bCount  = 1;
 
 let _toastTimer;
+
+// ── Category colors (non-conflicting) ──
+const CAT_COLORS = {
+  1: '#E05C6A',   // Word    → coral/rose
+  2: '#8B6FBF',   // Idiom   → violet
+  3: '#D4813A',   // Phrasal → orange
+};
 
 // ── Operation config ───────────────────────
 const OP_CONFIG = {
@@ -156,18 +167,16 @@ function toggleEye() {
 function goToCommits() { window.open('../commits/', '_blank'); }
 
 // ════════════════════════════════════════════
-// DYNAMIC NAV BUTTON — swaps per active tab
+// DYNAMIC NAV BUTTON
 // ════════════════════════════════════════════
 function updateNavDynamicBtn(tab) {
   activeTab = tab;
-  const actionsBtn      = document.getElementById('navActionsBtn');
-  const wordListBtn     = document.getElementById('navWordListBtn');
+  const actionsBtn       = document.getElementById('navActionsBtn');
+  const wordListBtn      = document.getElementById('navWordListBtn');
   const transportListBtn = document.getElementById('navTransportListBtn');
-
   actionsBtn.style.display       = 'none';
   wordListBtn.style.display      = 'none';
   transportListBtn.style.display = 'none';
-
   if (tab === 'view')      actionsBtn.style.display       = 'flex';
   if (tab === 'form')      wordListBtn.style.display      = 'flex';
   if (tab === 'transport') transportListBtn.style.display = 'flex';
@@ -220,21 +229,34 @@ function renderTiles(entries) {
 
 function buildTile(entry) {
   const tile = document.createElement('div');
-  const badgeClass = entry.category === 2 ? 'badge-idiom'
-                   : entry.category === 3 ? 'badge-phrasal' : 'badge-word';
-  let tileClass = 'word-tile';
-  if (entry.isInvalid)       tileClass += ' invalid-tile';
-  else if (entry.isInactive) tileClass += ' inactive-tile';
-  if (selectedUids.has(String(entry.uid))) tileClass += ' selected';
 
-  const meta    = buildTileMeta(entry);
-  const indStr  = meta.indicators
-    .map(ind => ind.active ? ind.key : `<span class="meta-dim">${ind.key}</span>`)
-    .join(' | ');
-  const metaStr = `${meta.label} | ${indStr}`;
+  const catColor    = CAT_COLORS[entry.category] || CAT_COLORS[1];
+  const activeColor = entry.active ? '#2ecc71' : '#cc3333';
+
+  // Bookmark logic
+  const hasNote    = entry.review_note;
+  const hasComment = !!(entry.comment && String(entry.comment).trim());
+  let bookmarkTitle = '';
+  if (hasNote && hasComment) bookmarkTitle = 'Review note & comment';
+  else if (hasNote)          bookmarkTitle = 'Review note';
+  else if (hasComment)       bookmarkTitle = 'Comment';
+  const showBookmark = hasNote || hasComment;
+
   const numidDisplay = entry.numid < 0 ? '−' + Math.abs(entry.numid) : String(entry.numid);
 
-  tile.className     = tileClass;
+  const meta   = buildTileMeta(entry);
+  const indStr = meta.indicators
+    .map(ind => ind.active ? ind.key : `<span class="meta-dim">${ind.key}</span>`)
+    .join(' · ');
+  const metaStr = `${meta.label} · ${indStr}`;
+
+  const isSelected = selectedUids.has(String(entry.uid));
+
+  tile.className = 'word-tile' +
+    (entry.isInvalid  ? ' invalid-tile'  : '') +
+    (entry.isInactive ? ' inactive-tile' : '') +
+    (isSelected       ? ' selected'      : '');
+
   tile.dataset.uid   = entry.uid;
   tile.dataset.eKey  = entry.e_key;
   tile.dataset.word  = entry.word;
@@ -242,25 +264,21 @@ function buildTile(entry) {
   tile.dataset.cat   = entry.categoryLabel;
   tile.dataset.label = entry.usageLabel !== 'Common' ? entry.usageLabel : '';
   tile.dataset.def   = entry.definition1;
-  tile.dataset.note  = entry.review_note ? '1' : '0';
+
+  // Left = category border, right = active status border
+  tile.style.cssText = `border-left:3.5px solid ${catColor};border-right:3.5px solid ${activeColor};border-top:1px solid var(--border);border-bottom:1px solid var(--border);`;
 
   tile.innerHTML = `
     <div class="tile-inner">
       <div class="tile-body">
         <div class="tile-line1">
           <span class="tile-word${entry.isInvalid ? ' invalid' : ''}">${escHtml(entry.word)}${entry.isInvalid ? ' ⚠' : ''}</span>
-          <span class="tile-numid-wrap">
-            <span class="tile-bracket">[</span>
-            <span class="tile-numid"${entry.isInvalid ? ' style="color:var(--warn)"' : ''}>${escHtml(numidDisplay)}</span>
-            <span class="tile-bracket">]</span>
-          </span>
         </div>
         <div class="tile-line2"><span class="tile-meta-text">${metaStr}</span></div>
       </div>
       <div class="tile-right">
-        ${entry.review_note ? '<span class="tile-note-icon">📌</span>' : ''}
-        <span class="tile-badge ${badgeClass}">${entry.categoryLabel}</span>
-        <div class="tile-check">✓</div>
+        ${showBookmark ? `<svg class="tile-bookmark" title="${bookmarkTitle}" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>` : ''}
+        <div class="tile-numid-chip${entry.isInvalid ? ' warn' : ''}">${escHtml(numidDisplay)}</div>
       </div>
     </div>`;
 
@@ -282,7 +300,7 @@ function updateViewCount(shown, total) {
 }
 
 // ════════════════════════════════════════════
-// TILE SELECTION
+// TILE SELECTION — view panel only, fully decoupled from form
 // ════════════════════════════════════════════
 function onTileClick(tile) {
   if (holdFired) { holdFired = false; return; }
@@ -347,7 +365,7 @@ function filterView(q) {
 }
 
 // ════════════════════════════════════════════
-// SIDEBAR MANAGEMENT — unified open/close
+// SIDEBAR MANAGEMENT
 // ════════════════════════════════════════════
 function closeAllSidebars() {
   document.getElementById('sidebarOverlay').classList.remove('open');
@@ -362,7 +380,9 @@ function openMenu() {
 }
 function closeMenu() { closeAllSidebars(); }
 
-// ── Word List Sidebar (Create tab) ─────────
+// ════════════════════════════════════════════
+// WORD LIST SIDEBAR
+// ════════════════════════════════════════════
 function openWordListSidebar() {
   renderWordList();
   document.getElementById('sidebarOverlay').classList.add('open');
@@ -372,20 +392,35 @@ function openWordListSidebar() {
 function renderWordList() {
   let entries = [...dataList];
 
-  // Apply category filter
-  if (wlFilter !== 'all') {
+  // Category filter
+  if (wlCategoryFilter !== 'all') {
     const map = { word: 1, idiom: 2, phrasal: 3 };
-    const val = map[wlFilter];
+    const val = map[wlCategoryFilter];
     if (val) entries = entries.filter(e => e.category === val);
   }
 
-  // Apply search
-  if (wlSearch) {
-    const q = wlSearch.toLowerCase();
+  // Group filter — relative to frozen numId
+  if (wlGroupFilter !== 'all' && frozenNumId != null) {
+    const absId = Math.abs(frozenNumId);
+    if (wlGroupFilter === 'same') entries = entries.filter(e => Math.abs(e.numid) === absId);
+    if (wlGroupFilter === 'diff') entries = entries.filter(e => Math.abs(e.numid) !== absId);
+  }
+
+  // Isolation filter
+  if (wlIsolation === 'isolated') entries = entries.filter(e => !e.refword);
+  if (wlIsolation === 'grouped')  entries = entries.filter(e => !!e.refword);
+
+  // Status filter
+  if (wlStatusFilter === 'active')   entries = entries.filter(e => e.active);
+  if (wlStatusFilter === 'inactive') entries = entries.filter(e => !e.active);
+
+  // Search
+  if (wlSearchVal) {
+    const q = wlSearchVal.toLowerCase();
     entries = entries.filter(e => e.word.toLowerCase().includes(q));
   }
 
-  // Sort alphabetically
+  // Sort alpha
   entries = entries.sort((a, b) => a.word.localeCompare(b.word));
 
   const list  = document.getElementById('wlList');
@@ -398,43 +433,91 @@ function renderWordList() {
     return;
   }
 
-  const badgeMap = { 1: { cls: 'badge-word', label: 'Word' }, 2: { cls: 'badge-idiom', label: 'Idiom' }, 3: { cls: 'badge-phrasal', label: 'Phrasal' } };
-
   entries.forEach(entry => {
-    const b   = badgeMap[entry.category] || badgeMap[1];
+    const catColor    = CAT_COLORS[entry.category] || CAT_COLORS[1];
+    const activeColor = entry.active ? '#2ecc71' : '#cc3333';
+    const numidDisplay = entry.numid < 0 ? '−' + Math.abs(entry.numid) : String(entry.numid);
     const item = document.createElement('div');
     item.className = 'wl-item';
+    item.style.borderLeft  = `3px solid ${catColor}`;
+    item.style.borderRight = `3px solid ${activeColor}`;
     item.innerHTML = `
       <div style="flex:1;min-width:0">
         <div class="wl-item-word">${escHtml(entry.word)}</div>
-        <div class="wl-item-meta">[${entry.numid}] · ${entry.role || entry.categoryLabel}</div>
       </div>
-      <span class="wl-item-badge ${b.cls}" style="font-size:9px;font-weight:700;padding:2px 7px;border-radius:999px">${b.label}</span>`;
+      <div class="wl-numid-chip">${escHtml(numidDisplay)}</div>`;
     item.addEventListener('click', () => loadWordIntoForm(entry));
     list.appendChild(item);
   });
 }
 
+// Load word into form — NEVER touches selectedUids
 function loadWordIntoForm(entry) {
-  // Load word into form in current op mode (default to edit if not already in an op)
   const op = (currentOp === 'create') ? 'edit' : currentOp;
-  // Temporarily select this entry so openFormOp can prefill
-  selectedUids.clear();
-  selectedUids.add(String(entry.uid));
-  openFormOp(op);
+  _openFormOpWithEntry(op, entry);
   closeAllSidebars();
   showToast('Loaded: ' + entry.word);
 }
 
 function filterWordList(q) {
-  wlSearch = q.trim();
+  wlSearchVal = q.trim();
   renderWordList();
 }
 
-function toggleWlChip(chip) {
-  document.querySelectorAll('#wlChips .wl-chip').forEach(c => c.classList.remove('active'));
+function toggleWlCatChip(chip) {
+  document.querySelectorAll('#wlCatChips .wl-cat-chip').forEach(c => c.classList.remove('active'));
   chip.classList.add('active');
-  wlFilter = chip.dataset.wl;
+  wlCategoryFilter = chip.dataset.cat;
+  renderWordList();
+}
+
+// ── 3 cycle toggle buttons ──
+const WL_GROUP_STATES     = ['all', 'same', 'diff'];
+const WL_ISOLATION_STATES = ['all', 'isolated', 'grouped'];
+const WL_STATUS_STATES    = ['all', 'active', 'inactive'];
+
+const WL_GROUP_ICONS = [
+  `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>`,
+  `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+];
+const WL_GROUP_TITLES     = ['All groups', 'Same group', 'Different group'];
+
+const WL_ISOLATION_ICONS = [
+  `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>`,
+  `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+  `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="6" height="6" rx="1"/><rect x="16" y="7" width="6" height="6" rx="1"/><line x1="8" y1="10" x2="16" y2="10"/></svg>`,
+];
+const WL_ISOLATION_TITLES = ['All words', 'Isolated only', 'Grouped only'];
+
+const WL_STATUS_ICONS = [
+  `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>`,
+  `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+  `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
+];
+const WL_STATUS_TITLES    = ['All statuses', 'Active only', 'Inactive only'];
+
+function cycleWlGroup() {
+  const idx = (WL_GROUP_STATES.indexOf(wlGroupFilter) + 1) % WL_GROUP_STATES.length;
+  wlGroupFilter = WL_GROUP_STATES[idx];
+  const btn = document.getElementById('wlGroupBtn');
+  if (btn) { btn.innerHTML = WL_GROUP_ICONS[idx]; btn.title = WL_GROUP_TITLES[idx]; btn.classList.toggle('wl-toggle-active', idx !== 0); }
+  renderWordList();
+}
+
+function cycleWlIsolation() {
+  const idx = (WL_ISOLATION_STATES.indexOf(wlIsolation) + 1) % WL_ISOLATION_STATES.length;
+  wlIsolation = WL_ISOLATION_STATES[idx];
+  const btn = document.getElementById('wlIsolationBtn');
+  if (btn) { btn.innerHTML = WL_ISOLATION_ICONS[idx]; btn.title = WL_ISOLATION_TITLES[idx]; btn.classList.toggle('wl-toggle-active', idx !== 0); }
+  renderWordList();
+}
+
+function cycleWlStatus() {
+  const idx = (WL_STATUS_STATES.indexOf(wlStatusFilter) + 1) % WL_STATUS_STATES.length;
+  wlStatusFilter = WL_STATUS_STATES[idx];
+  const btn = document.getElementById('wlStatusBtn');
+  if (btn) { btn.innerHTML = WL_STATUS_ICONS[idx]; btn.title = WL_STATUS_TITLES[idx]; btn.classList.toggle('wl-toggle-active', idx !== 0); }
   renderWordList();
 }
 
@@ -469,7 +552,7 @@ function updateMenuState() {
 }
 
 // ════════════════════════════════════════════
-// OPTIONS SHEET (Filter)
+// OPTIONS SHEET
 // ════════════════════════════════════════════
 function openOptions()  {
   document.getElementById('optionsOverlay').classList.add('open');
@@ -498,11 +581,8 @@ function applyOptions() {
   currentFilters.numidMin       = document.getElementById('filterNumidMin')?.value || '';
   currentFilters.numidMax       = document.getElementById('filterNumidMax')?.value || '';
   currentSort = document.querySelector('.sort-option.active')?.dataset.sort || 'word_asc';
-
-  // Update filter button active state
   const hasActiveFilter = Object.values(currentFilters).some(v => v && v !== 'all' && v !== '');
   document.getElementById('filterBtn')?.classList.toggle('active', hasActiveFilter);
-
   closeOptions();
   applyAndRender();
 }
@@ -533,39 +613,67 @@ function closeSettings() {
 }
 
 // ════════════════════════════════════════════
-// FORM OPERATION — open, freeze, prefill
+// FORM OPERATION
 // ════════════════════════════════════════════
+
+// From Actions menu — uses view selection
 function openFormOp(type) {
-  currentOp = type;
-  const cfg   = OP_CONFIG[type];
   const entry = (type === 'create') ? null : getFirstSelectedEntry();
+  _openFormOpWithEntry(type, entry);
+}
+
+// Internal — never touches selectedUids
+function _openFormOpWithEntry(type, entry) {
+  currentOp = type;
+  const cfg = OP_CONFIG[type];
 
   document.getElementById('formTabLabel').textContent = cfg.label;
 
-  const header   = document.getElementById('formOpHeader');
-  const badge    = document.getElementById('formOpBadge');
-  const subtitle = document.getElementById('formOpSubtitle');
+  const opCard  = document.getElementById('formOpCard');
+  const refCard = document.getElementById('formRefsCard');
+
   if (type === 'create') {
-    header.style.display = 'none';
+    if (opCard)  opCard.style.display  = 'none';
+    if (refCard) refCard.style.display = 'none';
+    frozenNumId = null;
   } else {
-    header.style.display = 'block';
-    badge.className      = 'op-badge ' + cfg.badgeClass;
-    badge.textContent    = cfg.badge;
-    subtitle.textContent = entry
-      ? cfg.subtitle + (entry.word ? ' — ' + entry.word : '')
-      : cfg.subtitle;
+    // Op card
+    if (opCard) {
+      opCard.style.display = 'block';
+      const opColors = {
+        add: '#D4973B', edit: '#5B9BD5', update: '#5B9BD5',
+        rename: '#5A6175', regroup: '#2A8C7E', trash: '#C62828', disable: '#5A6175',
+      };
+      const modeEl = document.getElementById('opCardMode');
+      if (modeEl) { modeEl.textContent = cfg.label.toUpperCase(); modeEl.style.color = opColors[type] || '#5A6175'; }
+      const descEl = document.getElementById('opCardDesc');
+      if (descEl) descEl.textContent = cfg.subtitle.split(' — ')[0];
+      const wordEl  = document.getElementById('opCardWord');
+      const numidEl = document.getElementById('opCardNumid');
+      const frozenWord  = entry?.word  || '—';
+      const frozenNum   = entry?.numid != null ? entry.numid : null;
+      frozenNumId = frozenNum;
+      if (wordEl)  wordEl.textContent  = frozenWord;
+      if (numidEl) numidEl.textContent = frozenNum != null
+        ? (frozenNum < 0 ? '−' + Math.abs(frozenNum) : String(frozenNum))
+        : '—';
+    }
+
+    // References card
+    if (refCard && entry) {
+      refCard.style.display = 'block';
+      const hasRefs   = !!(entry.refword && String(entry.refword).trim());
+      const statusEl  = document.getElementById('refCardStatus');
+      const dotEl     = document.getElementById('refCardDot');
+      if (statusEl) statusEl.textContent       = hasRefs ? 'Has references' : 'No references';
+      if (dotEl)    dotEl.style.background     = hasRefs ? '#2ecc71' : '#cc3333';
+    }
   }
 
   document.getElementById('formCancelBtn').style.display = type === 'create' ? 'none' : '';
 
-  ALL_FIELDS.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = false;
-  });
-  cfg.frozen.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.disabled = true;
-  });
+  ALL_FIELDS.forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
+  cfg.frozen.forEach(id => { const el = document.getElementById(id); if (el) el.disabled = true; });
 
   prefillForm(type, entry);
   formSnapshot = captureFormSnapshot();
@@ -626,10 +734,7 @@ function clearDynamicLists() {
 
 function clearAllFormFields() {
   document.querySelectorAll('#panel-form input:not([type="checkbox"]), #panel-form textarea, #panel-form select')
-    .forEach(el => {
-      if (el.tagName === 'SELECT') el.selectedIndex = 0;
-      else el.value = '';
-    });
+    .forEach(el => { if (el.tagName === 'SELECT') el.selectedIndex = 0; else el.value = ''; });
   const activeChk = document.getElementById('createActive');
   const reviewChk = document.getElementById('createReview');
   if (activeChk) activeChk.checked = true;
@@ -639,10 +744,7 @@ function clearAllFormFields() {
 function captureFormSnapshot() {
   const snap = {};
   document.querySelectorAll('#panel-form input, #panel-form textarea, #panel-form select')
-    .forEach(el => {
-      if (!el.id) return;
-      snap[el.id] = el.type === 'checkbox' ? el.checked : el.value;
-    });
+    .forEach(el => { if (!el.id) return; snap[el.id] = el.type === 'checkbox' ? el.checked : el.value; });
   snap._examples = [...document.querySelectorAll('#examplesList textarea')].map(t => t.value);
   snap._bengali  = [...document.querySelectorAll('#bengaliExList textarea')].map(t => t.value);
   return snap;
@@ -654,11 +756,29 @@ function restoreFormSnapshot(snap) {
     if (id.startsWith('_')) return;
     const el = document.getElementById(id);
     if (!el) return;
-    if (el.type === 'checkbox') el.checked = val;
-    else el.value = val;
+    if (el.type === 'checkbox') el.checked = val; else el.value = val;
   });
   if (snap._examples) fillDynamicList('examplesList', snap._examples, 5, 'Example sentence');
   if (snap._bengali)  fillDynamicList('bengaliExList', snap._bengali,  3, 'Bengali example');
+}
+
+// ════════════════════════════════════════════
+// OPEN MAP FROM FORM (preserves form state)
+// ════════════════════════════════════════════
+function openMapFromForm() {
+  const word  = document.getElementById('opCardWord')?.textContent  || '—';
+  const numid = document.getElementById('opCardNumid')?.textContent || '—';
+  document.getElementById('mapBaseWord').textContent = word;
+  document.getElementById('mapBaseMeta').textContent = '[' + numid + ']';
+  document.getElementById('mapBaseDef').textContent  = '—';
+  mapSelectedRefs.clear();
+  mapOpenCardId = null;
+  document.getElementById('mapRefSelectedLabel').classList.remove('show');
+  const overlay = document.getElementById('mapOverlay');
+  overlay.style.display = 'flex';
+  requestAnimationFrame(() => overlay.classList.add('open'));
+  const firstTab = document.querySelector('.map-tab');
+  if (firstTab) switchMapTab('list', firstTab);
 }
 
 // ════════════════════════════════════════════
@@ -667,35 +787,33 @@ function restoreFormSnapshot(snap) {
 function cancelForm() {
   currentOp    = 'create';
   formSnapshot = null;
+  frozenNumId  = null;
   clearAllFormFields();
   clearDynamicLists();
   ALL_FIELDS.forEach(id => { const el = document.getElementById(id); if (el) el.disabled = false; });
-  document.getElementById('formTabLabel').textContent   = 'Create';
-  document.getElementById('formOpHeader').style.display = 'none';
+  document.getElementById('formTabLabel').textContent    = 'Create';
+  const opCard  = document.getElementById('formOpCard');
+  const refCard = document.getElementById('formRefsCard');
+  if (opCard)  opCard.style.display  = 'none';
+  if (refCard) refCard.style.display = 'none';
   document.getElementById('formCancelBtn').style.display = 'none';
   const viewTab = document.querySelector('.crud-tab');
   switchTab('view', viewTab);
 }
 
 function resetForm() {
-  if (currentOp === 'create') {
-    clearAllFormFields();
-    clearDynamicLists();
-    showToast('Form cleared');
-  } else {
-    restoreFormSnapshot(formSnapshot);
-    showToast('Changes undone');
-  }
+  if (currentOp === 'create') { clearAllFormFields(); clearDynamicLists(); showToast('Form cleared'); }
+  else { restoreFormSnapshot(formSnapshot); showToast('Changes undone'); }
 }
 
 // ════════════════════════════════════════════
-// COMMIT — routes by currentOp
+// COMMIT
 // ════════════════════════════════════════════
 function queueCommit() {
   const entry  = getFirstSelectedEntry();
-  const word   = entry?.word   || getVal('createWord').trim() || '—';
-  const numid  = entry?.numid  ?? parseFloat(getVal('createNumid'));
-  const e_key  = entry?.e_key  ?? null;
+  const word   = entry?.word  || getVal('createWord').trim() || '—';
+  const numid  = entry?.numid ?? parseFloat(getVal('createNumid'));
+  const e_key  = entry?.e_key ?? null;
   const extra  = {};
 
   if (currentOp === 'create') return queueCreate();
@@ -703,48 +821,29 @@ function queueCommit() {
   if (currentOp === 'add') {
     const newWord = getVal('createWord').trim();
     if (!newWord) { showToast('Word is required', 'error'); return; }
-    extra.newData = {
-      word: newWord, numid: entry?.numid ?? null,
-      category: parseInt(getVal('createCategory')) || 1,
-      role: getVal('createRole'), definition1: getVal('createDef1'), definition2: getVal('createDef2'),
-    };
+    extra.newData = { word: newWord, numid: entry?.numid ?? null, category: parseInt(getVal('createCategory')) || 1, role: getVal('createRole'), definition1: getVal('createDef1'), definition2: getVal('createDef2') };
   }
   if (currentOp === 'edit') {
-    extra.newData = {
-      word: getVal('createWord'), numid: parseFloat(getVal('createNumid')),
-      category: parseInt(getVal('createCategory')) || 1,
-      usage: parseInt(getVal('createUsage')) || 0,
-      role: getVal('createRole'), definition1: getVal('createDef1'), definition2: getVal('createDef2'),
-      active: document.getElementById('createActive')?.checked,
-      review_note: document.getElementById('createReview')?.checked,
-      comment: getVal('createComment'),
-    };
+    extra.newData = { word: getVal('createWord'), numid: parseFloat(getVal('createNumid')), category: parseInt(getVal('createCategory')) || 1, usage: parseInt(getVal('createUsage')) || 0, role: getVal('createRole'), definition1: getVal('createDef1'), definition2: getVal('createDef2'), active: document.getElementById('createActive')?.checked, review_note: document.getElementById('createReview')?.checked, comment: getVal('createComment') };
   }
   if (currentOp === 'update') {
-    extra.newData = {
-      usage: parseInt(getVal('createUsage')) || 0, role: getVal('createRole'),
-      definition1: getVal('createDef1'), definition2: getVal('createDef2'), comment: getVal('createComment'),
-    };
+    extra.newData = { usage: parseInt(getVal('createUsage')) || 0, role: getVal('createRole'), definition1: getVal('createDef1'), definition2: getVal('createDef2'), comment: getVal('createComment') };
   }
   if (currentOp === 'rename') {
     const newWord = getVal('createWord').trim();
     if (!newWord) { showToast('New word string is required', 'error'); return; }
-    extra.newData = { word: newWord };
-    extra.comment = 'Renamed from: ' + (entry?.word || '—');
+    extra.newData = { word: newWord }; extra.comment = 'Renamed from: ' + (entry?.word || '—');
   }
   if (currentOp === 'regroup') {
     const newNumid = parseFloat(getVal('createNumid'));
     if (isNaN(newNumid)) { showToast('New NumId is required', 'error'); return; }
-    extra.newData = { numid: newNumid };
-    extra.comment = 'Regrouped from numid=' + (entry?.numid ?? '—');
+    extra.newData = { numid: newNumid }; extra.comment = 'Regrouped from numid=' + (entry?.numid ?? '—');
   }
   if (currentOp === 'trash') {
-    extra.newData = { numid: 0 };
-    extra.comment = 'Original numid=' + (entry?.numid ?? '—') + '. ' + getVal('createComment');
+    extra.newData = { numid: 0 }; extra.comment = 'Original numid=' + (entry?.numid ?? '—') + '. ' + getVal('createComment');
   }
   if (currentOp === 'disable') {
-    extra.newData = { active: document.getElementById('createActive')?.checked };
-    extra.comment = getVal('createComment');
+    extra.newData = { active: document.getElementById('createActive')?.checked }; extra.comment = getVal('createComment');
   }
 
   const result = pushCommit(makeCommit(currentOp, word, numid, e_key, extra));
@@ -755,9 +854,6 @@ function queueCommit() {
   cancelForm();
 }
 
-// ════════════════════════════════════════════
-// CREATE
-// ════════════════════════════════════════════
 function queueCreate() {
   const word  = getVal('createWord').trim();
   const numid = parseFloat(getVal('createNumid'));
@@ -770,8 +866,7 @@ function queueCreate() {
 
   const newEntry = {
     e_key: newEKey, uid: 0, numid, word,
-    category: parseInt(getVal('createCategory')) || 1,
-    usage: parseInt(getVal('createUsage')) || 0,
+    category: parseInt(getVal('createCategory')) || 1, usage: parseInt(getVal('createUsage')) || 0,
     role: getVal('createRole'), definition1: getVal('createDef1'), definition2: getVal('createDef2'),
     example1: ex[0]||'', example2: ex[1]||'', example3: ex[2]||'', example4: ex[3]||'', example5: ex[4]||'',
     bengali_def: getVal('createBengaliDef'),
@@ -797,33 +892,27 @@ function setVal(id, val)   { const el = document.getElementById(id); if (el) el.
 function setCheck(id, val) { const el = document.getElementById(id); if (el) el.checked = !!val; }
 function getVal(id)        { return document.getElementById(id)?.value || ''; }
 function setSelectByValue(id, val) {
-  const el = document.getElementById(id);
-  if (!el) return;
+  const el = document.getElementById(id); if (!el) return;
   [...el.options].forEach((o, i) => { if (o.value === val) el.selectedIndex = i; });
 }
 
-// ════════════════════════════════════════════
-// DYNAMIC EXAMPLE ROWS
-// ════════════════════════════════════════════
 function addExample() {
   if (exCount >= 5) { showToast('Maximum 5 examples'); return; }
   exCount++;
-  const row = document.createElement('div');
-  row.className = 'example-row';
+  const row = document.createElement('div'); row.className = 'example-row';
   row.innerHTML = `<textarea class="form-input" placeholder="Example sentence ${exCount}…"></textarea><button class="example-remove" onclick="this.closest('.example-row').remove()">✕</button>`;
   document.getElementById('examplesList').appendChild(row);
 }
 function addBengaliExample() {
   if (bCount >= 3) { showToast('Maximum 3 Bengali examples'); return; }
   bCount++;
-  const row = document.createElement('div');
-  row.className = 'example-row';
+  const row = document.createElement('div'); row.className = 'example-row';
   row.innerHTML = `<textarea class="form-input" placeholder="Bengali example ${bCount}…"></textarea><button class="example-remove" onclick="this.closest('.example-row').remove()">✕</button>`;
   document.getElementById('bengaliExList').appendChild(row);
 }
 
 // ════════════════════════════════════════════
-// TRANSPORT TAB
+// TRANSPORT
 // ════════════════════════════════════════════
 function simulateUpload() {
   document.getElementById('dropZone').style.display          = 'none';
@@ -843,19 +932,12 @@ function selectFormat(chip) {
 // ════════════════════════════════════════════
 function openMapPanel() {
   if (getSelectionMode() === 'none') { showToast('Select a word first', 'error'); return; }
-  const tile = getFirstSelectedTile();
-  if (!tile) return;
-
+  const tile = getFirstSelectedTile(); if (!tile) return;
   document.getElementById('mapBaseWord').textContent = tile.dataset.word;
-  document.getElementById('mapBaseMeta').textContent =
-    '[' + tile.dataset.numid + '] · ' + tile.dataset.cat +
-    (tile.dataset.label ? ' · ' + tile.dataset.label : '');
-  document.getElementById('mapBaseDef').textContent = tile.dataset.def || 'No definition available.';
-
-  mapSelectedRefs.clear();
-  mapOpenCardId = null;
+  document.getElementById('mapBaseMeta').textContent = '[' + tile.dataset.numid + '] · ' + tile.dataset.cat + (tile.dataset.label ? ' · ' + tile.dataset.label : '');
+  document.getElementById('mapBaseDef').textContent  = tile.dataset.def || 'No definition available.';
+  mapSelectedRefs.clear(); mapOpenCardId = null;
   document.getElementById('mapRefSelectedLabel').classList.remove('show');
-
   const overlay = document.getElementById('mapOverlay');
   overlay.style.display = 'flex';
   requestAnimationFrame(() => overlay.classList.add('open'));
@@ -868,8 +950,7 @@ function closeMapPanel() {
   const overlay = document.getElementById('mapOverlay');
   overlay.classList.remove('open');
   overlay.addEventListener('transitionend', () => { overlay.style.display = 'none'; }, { once: true });
-  mapSelectedRefs.clear();
-  mapOpenCardId = null;
+  mapSelectedRefs.clear(); mapOpenCardId = null;
   closeMapMenu();
 }
 
@@ -881,8 +962,7 @@ function switchMapTab(name, btn) {
 }
 
 function toggleMapRefSelect(id) {
-  const row = document.getElementById('mrow-' + id);
-  if (!row) return;
+  const row = document.getElementById('mrow-' + id); if (!row) return;
   if (mapSelectedRefs.has(id)) { mapSelectedRefs.delete(id); row.classList.remove('selected'); }
   else { mapSelectedRefs.add(id); row.classList.add('selected'); }
   const lbl = document.getElementById('mapRefSelectedLabel');
@@ -891,8 +971,7 @@ function toggleMapRefSelect(id) {
 }
 
 function deleteMapRef(id) {
-  const wrap = document.getElementById('mwrap-' + id);
-  if (!wrap) return;
+  const wrap = document.getElementById('mwrap-' + id); if (!wrap) return;
   wrap.style.opacity = '0'; wrap.style.transform = 'translateX(20px)'; wrap.style.transition = 'all .2s ease';
   setTimeout(() => { wrap.remove(); showToast('↪ Ref queued for deletion', 'warn'); }, 200);
   mapSelectedRefs.delete(id);
@@ -901,8 +980,7 @@ function deleteMapRef(id) {
 
 function deleteMapSelected() {
   if (!mapSelectedRefs.size) { showToast('Select references first'); return; }
-  [...mapSelectedRefs].forEach(id => deleteMapRef(id));
-  mapSelectedRefs.clear();
+  [...mapSelectedRefs].forEach(id => deleteMapRef(id)); mapSelectedRefs.clear();
 }
 
 function toggleMapCard(id) {
@@ -924,8 +1002,8 @@ function toggleMapCard(id) {
 
   if (id !== 'new') {
     const row = document.getElementById(rowId);
-    const w   = row?.querySelector('.ref-word')?.textContent  || '';
-    const n   = row?.querySelector('.ref-numid')?.textContent.replace('·', '').trim() || '';
+    const w = row?.querySelector('.ref-word')?.textContent || '';
+    const n = row?.querySelector('.ref-numid')?.textContent.replace('·', '').trim() || '';
     if (w) card.querySelector('.ref-word-input').value  = w;
     if (n) card.querySelector('.ref-numid-input').value = n;
   }
@@ -938,8 +1016,7 @@ function toggleMapCard(id) {
 }
 
 function updateMapTier(id) {
-  const card  = document.getElementById('mcard-' + id);
-  if (!card) return;
+  const card = document.getElementById('mcard-' + id); if (!card) return;
   const word  = card.querySelector('.ref-word-input')?.value.trim()  || '';
   const numid = card.querySelector('.ref-numid-input')?.value.trim() || '';
   const uid   = card.querySelector('.ref-uid-input')?.value.trim()   || '';
@@ -959,11 +1036,9 @@ function onMapFieldInput(input, id) {
   if (!drop) { updateMapTier(id); return; }
   if (val.length < 1) { drop.classList.remove('show'); updateMapTier(id); return; }
   if (field === 'word') {
-    const results = searchEntries(val, 8);
-    drop.innerHTML = '';
+    const results = searchEntries(val, 8); drop.innerHTML = '';
     results.forEach(entry => {
-      const item = document.createElement('div');
-      item.className = 'ref-dropdown-item';
+      const item = document.createElement('div'); item.className = 'ref-dropdown-item';
       item.dataset.word = entry.word; item.dataset.numid = entry.numid; item.dataset.uid = entry.uid;
       item.setAttribute('onclick', `selectMapFromDropdown(this,'${id}')`);
       item.innerHTML = `<div class="ref-dropdown-word">${escHtml(entry.word)}</div><div class="ref-dropdown-meta">NumId ${entry.numid} · ${entry.role || entry.categoryLabel}</div>`;
@@ -975,8 +1050,7 @@ function onMapFieldInput(input, id) {
 }
 
 function selectMapFromDropdown(item, id) {
-  const card = document.getElementById('mcard-' + id);
-  if (!card) return;
+  const card = document.getElementById('mcard-' + id); if (!card) return;
   card.querySelector('.ref-word-input').value  = item.dataset.word  || '';
   card.querySelector('.ref-numid-input').value = item.dataset.numid || '';
   card.querySelector('.ref-uid-input').value   = item.dataset.uid   || '';
@@ -985,8 +1059,7 @@ function selectMapFromDropdown(item, id) {
 }
 
 function clearMapCard(id) {
-  const card = document.getElementById('mcard-' + id);
-  if (!card) return;
+  const card = document.getElementById('mcard-' + id); if (!card) return;
   card.querySelectorAll('input').forEach(el => el.value = '');
   card.querySelectorAll('select').forEach(el => el.selectedIndex = 0);
   card.querySelectorAll('.ref-dropdown').forEach(d => d.classList.remove('show'));
@@ -994,12 +1067,10 @@ function clearMapCard(id) {
 }
 
 function saveMapCard(id) {
-  const card = document.getElementById('mcard-' + id);
-  if (!card) return;
+  const card = document.getElementById('mcard-' + id); if (!card) return;
   if (!card.querySelector('.ref-word-input')?.value.trim()) { showToast('Word is required', 'error'); return; }
   showToast('↪ Reference saved locally', 'success');
-  card.remove();
-  document.getElementById('mrow-' + id)?.classList.remove('has-card');
+  card.remove(); document.getElementById('mrow-' + id)?.classList.remove('has-card');
   mapOpenCardId = null;
 }
 
