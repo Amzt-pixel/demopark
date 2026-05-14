@@ -16,11 +16,11 @@ let activeTab       = 'view';
 
 // Word list sidebar state
 let wlCategoryFilter = 'all';
-let wlGroupFilter    = 'all';    // all | same | diff
-let wlIsolation      = 'all';    // all | isolated | grouped
-let wlStatusFilter   = 'all';    // all | active | inactive
+let wlGroupFilter    = 'all';
+let wlIsolation      = 'all';
+let wlStatusFilter   = 'all';
 let wlSearchVal      = '';
-let frozenNumId      = null;     // numId from frozen op card
+let frozenNumId      = null;
 
 // Map panel state
 let mapOpenCardId   = null;
@@ -244,11 +244,11 @@ function buildTile(entry) {
 
   const numidDisplay = entry.numid < 0 ? '−' + Math.abs(entry.numid) : String(entry.numid);
 
-  // Meta indicators — [D|E|T|TE] format
-  const meta   = buildTileMeta(entry);
-  const indFormatted = '[' + meta.indicators
+  // Meta indicators — [ D | E | T | TE ] with spaces
+  const meta = buildTileMeta(entry);
+  const indFormatted = '[ ' + meta.indicators
     .map(ind => ind.active ? ind.key : `<span class="meta-dim">${ind.key}</span>`)
-    .join('|') + ']';
+    .join(' | ') + ' ]';
   const metaStr = `${meta.label} · ${indFormatted}`;
 
   const isSelected = selectedUids.has(String(entry.uid));
@@ -266,8 +266,8 @@ function buildTile(entry) {
   tile.dataset.label = entry.usageLabel !== 'Common' ? entry.usageLabel : '';
   tile.dataset.def   = entry.definition1;
 
-  // Left border only — no right border
-  tile.style.cssText = `border-left: 3.5px solid ${catColor}; border-left-color: ${catColor};`;
+  // Both left (category color) and right (active status color) borders
+  tile.style.cssText = `border-left:3.5px solid ${catColor}; border-right:3.5px solid ${activeColor};`;
 
   tile.innerHTML = `
     <div class="tile-inner">
@@ -279,10 +279,7 @@ function buildTile(entry) {
         <div class="tile-line2"><span class="tile-meta-text">${metaStr}</span></div>
       </div>
       <div class="tile-right">
-        <div class="tile-top-right">
-          <div class="tile-status-dot" style="background:${activeColor}"></div>
-          <div class="tile-numid-chip${entry.isInvalid ? ' warn' : ''}">${escHtml(numidDisplay)}</div>
-        </div>
+        <div class="tile-numid-chip${entry.isInvalid ? ' warn' : ''}">${escHtml(numidDisplay)}</div>
       </div>
     </div>`;
 
@@ -304,7 +301,7 @@ function updateViewCount(shown, total) {
 }
 
 // ════════════════════════════════════════════
-// TILE SELECTION — view panel only, fully decoupled from form
+// TILE SELECTION
 // ════════════════════════════════════════════
 function onTileClick(tile) {
   if (holdFired) { holdFired = false; return; }
@@ -396,35 +393,25 @@ function openWordListSidebar() {
 function renderWordList() {
   let entries = [...dataList];
 
-  // Category filter
   if (wlCategoryFilter !== 'all') {
     const map = { word: 1, idiom: 2, phrasal: 3 };
     const val = map[wlCategoryFilter];
     if (val) entries = entries.filter(e => e.category === val);
   }
-
-  // Group filter — relative to frozen numId
   if (wlGroupFilter !== 'all' && frozenNumId != null) {
     const absId = Math.abs(frozenNumId);
     if (wlGroupFilter === 'same') entries = entries.filter(e => Math.abs(e.numid) === absId);
     if (wlGroupFilter === 'diff') entries = entries.filter(e => Math.abs(e.numid) !== absId);
   }
-
-  // Isolation filter
   if (wlIsolation === 'isolated') entries = entries.filter(e => !e.refword);
   if (wlIsolation === 'grouped')  entries = entries.filter(e => !!e.refword);
-
-  // Status filter
   if (wlStatusFilter === 'active')   entries = entries.filter(e => e.active);
   if (wlStatusFilter === 'inactive') entries = entries.filter(e => !e.active);
-
-  // Search
   if (wlSearchVal) {
     const q = wlSearchVal.toLowerCase();
     entries = entries.filter(e => e.word.toLowerCase().includes(q));
   }
 
-  // Sort alpha
   entries = entries.sort((a, b) => a.word.localeCompare(b.word));
 
   const list  = document.getElementById('wlList');
@@ -439,11 +426,10 @@ function renderWordList() {
 
   entries.forEach(entry => {
     const catColor     = CAT_COLORS[entry.category] || CAT_COLORS[1];
-    const activeColor  = entry.active ? '#2ecc71' : '#cc3333';
     const numidDisplay = entry.numid < 0 ? '−' + Math.abs(entry.numid) : String(entry.numid);
     const item = document.createElement('div');
     item.className = 'wl-item';
-    item.style.borderLeft  = `3px solid ${catColor}`;
+    item.style.borderLeft = `3px solid ${catColor}`;
     item.innerHTML = `
       <div style="flex:1;min-width:0">
         <div class="wl-item-word">${escHtml(entry.word)}</div>
@@ -454,7 +440,6 @@ function renderWordList() {
   });
 }
 
-// Load word into form — NEVER touches selectedUids
 function loadWordIntoForm(entry) {
   const op = (currentOp === 'create') ? 'edit' : currentOp;
   _openFormOpWithEntry(op, entry);
@@ -474,7 +459,6 @@ function toggleWlCatChip(chip) {
   renderWordList();
 }
 
-// ── 3 cycle toggle buttons ──
 const WL_GROUP_STATES     = ['all', 'same', 'diff'];
 const WL_ISOLATION_STATES = ['all', 'isolated', 'grouped'];
 const WL_STATUS_STATES    = ['all', 'active', 'inactive'];
@@ -484,7 +468,7 @@ const WL_GROUP_ICONS = [
   `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
   `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
 ];
-const WL_GROUP_TITLES     = ['All groups', 'Same group', 'Different group'];
+const WL_GROUP_TITLES = ['All groups', 'Same group', 'Different group'];
 
 const WL_ISOLATION_ICONS = [
   `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>`,
@@ -498,7 +482,7 @@ const WL_STATUS_ICONS = [
   `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
   `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>`,
 ];
-const WL_STATUS_TITLES    = ['All statuses', 'Active only', 'Inactive only'];
+const WL_STATUS_TITLES = ['All statuses', 'Active only', 'Inactive only'];
 
 function cycleWlGroup() {
   const idx = (WL_GROUP_STATES.indexOf(wlGroupFilter) + 1) % WL_GROUP_STATES.length;
@@ -507,7 +491,6 @@ function cycleWlGroup() {
   if (btn) { btn.innerHTML = WL_GROUP_ICONS[idx]; btn.title = WL_GROUP_TITLES[idx]; btn.classList.toggle('wl-toggle-active', idx !== 0); }
   renderWordList();
 }
-
 function cycleWlIsolation() {
   const idx = (WL_ISOLATION_STATES.indexOf(wlIsolation) + 1) % WL_ISOLATION_STATES.length;
   wlIsolation = WL_ISOLATION_STATES[idx];
@@ -515,7 +498,6 @@ function cycleWlIsolation() {
   if (btn) { btn.innerHTML = WL_ISOLATION_ICONS[idx]; btn.title = WL_ISOLATION_TITLES[idx]; btn.classList.toggle('wl-toggle-active', idx !== 0); }
   renderWordList();
 }
-
 function cycleWlStatus() {
   const idx = (WL_STATUS_STATES.indexOf(wlStatusFilter) + 1) % WL_STATUS_STATES.length;
   wlStatusFilter = WL_STATUS_STATES[idx];
@@ -618,14 +600,11 @@ function closeSettings() {
 // ════════════════════════════════════════════
 // FORM OPERATION
 // ════════════════════════════════════════════
-
-// From Actions menu — uses view selection
 function openFormOp(type) {
   const entry = (type === 'create') ? null : getFirstSelectedEntry();
   _openFormOpWithEntry(type, entry);
 }
 
-// Internal — never touches selectedUids
 function _openFormOpWithEntry(type, entry) {
   currentOp = type;
   const cfg = OP_CONFIG[type];
@@ -640,7 +619,6 @@ function _openFormOpWithEntry(type, entry) {
     if (refCard) refCard.style.display = 'none';
     frozenNumId = null;
   } else {
-    // Op card
     if (opCard) {
       opCard.style.display = 'block';
       const opColors = {
@@ -653,23 +631,21 @@ function _openFormOpWithEntry(type, entry) {
       if (descEl) descEl.textContent = cfg.subtitle.split(' — ')[0];
       const wordEl  = document.getElementById('opCardWord');
       const numidEl = document.getElementById('opCardNumid');
-      const frozenWord  = entry?.word  || '—';
-      const frozenNum   = entry?.numid != null ? entry.numid : null;
+      const frozenWord = entry?.word  || '—';
+      const frozenNum  = entry?.numid != null ? entry.numid : null;
       frozenNumId = frozenNum;
       if (wordEl)  wordEl.textContent  = frozenWord;
       if (numidEl) numidEl.textContent = frozenNum != null
         ? (frozenNum < 0 ? '−' + Math.abs(frozenNum) : String(frozenNum))
         : '—';
     }
-
-    // References card
     if (refCard && entry) {
       refCard.style.display = 'block';
-      const hasRefs   = !!(entry.refword && String(entry.refword).trim());
-      const statusEl  = document.getElementById('refCardStatus');
-      const dotEl     = document.getElementById('refCardDot');
-      if (statusEl) statusEl.textContent       = hasRefs ? 'Has references' : 'No references';
-      if (dotEl)    dotEl.style.background     = hasRefs ? '#2ecc71' : '#cc3333';
+      const hasRefs  = !!(entry.refword && String(entry.refword).trim());
+      const statusEl = document.getElementById('refCardStatus');
+      const dotEl    = document.getElementById('refCardDot');
+      if (statusEl) statusEl.textContent   = hasRefs ? 'Has references' : 'No references';
+      if (dotEl)    dotEl.style.background = hasRefs ? '#2ecc71' : '#cc3333';
     }
   }
 
@@ -766,7 +742,7 @@ function restoreFormSnapshot(snap) {
 }
 
 // ════════════════════════════════════════════
-// OPEN MAP FROM FORM (preserves form state)
+// OPEN MAP FROM FORM
 // ════════════════════════════════════════════
 function openMapFromForm() {
   const word  = document.getElementById('opCardWord')?.textContent  || '—';
