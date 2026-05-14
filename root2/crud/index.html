@@ -28,39 +28,61 @@
 }
 .filter-btn:hover, .filter-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
 
-/* ── Tile redesign ── */
+/* ── Search bar — gold accent ── */
+.view-search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(212,151,59,.1); }
+.view-search-icon { color: var(--accent); }
+
+/* ── Tile base ── */
 .word-tile {
   border-radius: 10px !important;
   overflow: hidden;
+  border: 1px solid var(--border) !important;
+  border-left-width: 3.5px !important;
 }
 .word-tile.selected {
   background: #FDF3E3 !important;
-  border-top-color: transparent !important;
-  border-bottom-color: transparent !important;
   box-shadow: 0 2px 16px rgba(212,151,59,.18) !important;
 }
-/* Boost left border on selected */
 .word-tile.selected { border-left-width: 4px !important; }
 
+/* ── Bookmark icon ── */
 .tile-bookmark {
   color: var(--accent); opacity: .75; flex-shrink: 0;
   transition: opacity .15s;
 }
 .word-tile:hover .tile-bookmark { opacity: 1; }
 
-/* NumId chip — dark, attention-drawing */
+/* ── NumId chip — gold solid inverted ── */
 .tile-numid-chip {
   font-family: 'DM Mono', 'Fira Mono', monospace;
-  font-size: 10px; font-weight: 700;
-  background: var(--navy); color: var(--accent-light);
-  padding: 3px 7px; border-radius: 4px;
-  letter-spacing: .5px; flex-shrink: 0;
-  border: 1px solid rgba(255,255,255,.06);
-  box-shadow: 0 1px 4px rgba(27,46,75,.25);
+  font-size: 11px; font-weight: 700;
+  background: var(--accent);
+  color: var(--navy);
+  padding: 5px 9px; border-radius: 8px;
+  letter-spacing: .3px; flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(212,151,59,.35);
+  border: none;
+  min-width: 36px; text-align: center;
 }
 .tile-numid-chip.warn {
-  background: var(--warn-bg); color: var(--warn);
-  border-color: var(--warn-border);
+  background: var(--warn); color: #fff;
+  box-shadow: 0 2px 6px rgba(180,83,9,.3);
+}
+
+/* ── Status dot + right group ── */
+.tile-top-right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
+.tile-status-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0,0,0,.25);
+  flex-shrink: 0;
 }
 
 /* ── Word List Sidebar — wider ── */
@@ -103,10 +125,9 @@
 .wl-cat-chip:hover { border-color: var(--accent-light); color: var(--accent-light); }
 .wl-cat-chip.active { border-color: var(--accent); background: rgba(212,151,59,.15); color: var(--accent-light); }
 
-/* Left border on cat chips instead of pill color */
-.wl-cat-chip[data-cat="word"]    { border-left: 3px solid #E05C6A; }
-.wl-cat-chip[data-cat="idiom"]   { border-left: 3px solid #8B6FBF; }
-.wl-cat-chip[data-cat="phrasal"] { border-left: 3px solid #D4813A; }
+.wl-cat-chip[data-cat="word"]    { border-left: 3px solid #5B9BD5; }
+.wl-cat-chip[data-cat="idiom"]   { border-left: 3px solid #2A8C7E; }
+.wl-cat-chip[data-cat="phrasal"] { border-left: 3px solid #D4973B; }
 
 .wl-divider { width: 1px; height: 22px; background: rgba(255,255,255,.12); flex-shrink: 0; }
 
@@ -141,9 +162,9 @@
 /* NumId chip inside word list */
 .wl-numid-chip {
   font-family: monospace; font-size: 9px; font-weight: 700;
-  background: rgba(255,255,255,.08); color: var(--accent-light);
-  padding: 2px 6px; border-radius: 3px; flex-shrink: 0;
-  border: 1px solid rgba(255,255,255,.08);
+  background: var(--accent); color: var(--navy);
+  padding: 3px 7px; border-radius: 5px; flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(212,151,59,.3);
 }
 
 /* ── Form Op Card (static frozen) ── */
@@ -261,11 +282,9 @@
       <div class="sync-label" id="syncLabel">Not synced</div>
     </div>
     <div class="nav-right">
-      <!-- Settings -->
       <button class="nav-btn" id="settingsBtn" data-tip="Settings" onclick="openSettings()">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       </button>
-      <!-- Dynamic middle button -->
       <button class="nav-btn" id="navActionsBtn" data-tip="Actions" onclick="openMenu()" style="display:flex">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>
       </button>
@@ -275,7 +294,6 @@
       <button class="nav-btn" id="navTransportListBtn" data-tip="File List" onclick="showToast('File list — coming soon')" style="display:none">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
       </button>
-      <!-- Commits -->
       <button class="nav-btn commit-btn" data-tip="Commits" onclick="goToCommits()">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="1.05" y1="12" x2="7" y2="12"/><line x1="17.01" y1="12" x2="22.96" y2="12"/></svg>
         <span class="commit-badge" id="commitBadge" style="display:none">0</span>
@@ -326,7 +344,6 @@
     <!-- FORM TAB -->
     <div class="crud-panel" id="panel-form">
 
-      <!-- Static frozen op card -->
       <div class="form-op-card" id="formOpCard" style="display:none">
         <div class="op-card-mode" id="opCardMode">EDIT</div>
         <div class="op-card-desc" id="opCardDesc">Full edit — all fields modifiable</div>
@@ -336,7 +353,6 @@
         </div>
       </div>
 
-      <!-- References card -->
       <div class="form-refs-card" id="formRefsCard" style="display:none">
         <div class="refs-card-left">
           <div class="refs-card-dot" id="refCardDot"></div>
@@ -526,34 +542,27 @@
     <button class="sidebar-close" onclick="closeAllSidebars()">✕</button>
   </div>
   <div class="sidebar-body">
-    <!-- Search -->
     <div class="wl-search-wrap">
       <input class="wl-search" id="wlSearch" type="text" placeholder="Search words…" oninput="filterWordList(this.value)"/>
       <svg class="wl-search-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     </div>
-    <!-- Filter row: cat chips + divider + 3 toggle buttons -->
     <div class="wl-filter-row" id="wlCatChips">
       <div class="wl-cat-chip active" data-cat="all"     onclick="toggleWlCatChip(this)">All</div>
       <div class="wl-cat-chip"        data-cat="word"    onclick="toggleWlCatChip(this)">Word</div>
       <div class="wl-cat-chip"        data-cat="idiom"   onclick="toggleWlCatChip(this)">Idiom</div>
       <div class="wl-cat-chip"        data-cat="phrasal" onclick="toggleWlCatChip(this)">Phrasal</div>
       <div class="wl-divider"></div>
-      <!-- Group toggle -->
       <button class="wl-toggle-btn" id="wlGroupBtn" title="All groups" onclick="cycleWlGroup()">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
       </button>
-      <!-- Isolation toggle -->
       <button class="wl-toggle-btn" id="wlIsolationBtn" title="All words" onclick="cycleWlIsolation()">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
       </button>
-      <!-- Status toggle -->
       <button class="wl-toggle-btn" id="wlStatusBtn" title="All statuses" onclick="cycleWlStatus()">
         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
       </button>
     </div>
-    <!-- Count -->
     <div class="wl-count" id="wlCount">0 words</div>
-    <!-- List -->
     <div class="wl-list" id="wlList">
       <div class="empty-state" style="color:rgba(255,255,255,.3);padding:30px 10px">
         <div class="empty-state-icon">📋</div>
