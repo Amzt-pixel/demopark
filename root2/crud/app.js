@@ -36,11 +36,11 @@ let bCount  = 1;
 
 let _toastTimer;
 
-// ── Category colors (non-conflicting) ──
+// ── Category colors ────────────────────────
 const CAT_COLORS = {
-  1: '#E05C6A',   // Word    → coral/rose
-  2: '#8B6FBF',   // Idiom   → violet
-  3: '#D4813A',   // Phrasal → orange
+  1: '#5B9BD5',   // Word    → Blue
+  2: '#2A8C7E',   // Idiom   → Teal
+  3: '#D4973B',   // Phrasal → Gold
 };
 
 // ── Operation config ───────────────────────
@@ -244,11 +244,12 @@ function buildTile(entry) {
 
   const numidDisplay = entry.numid < 0 ? '−' + Math.abs(entry.numid) : String(entry.numid);
 
+  // Meta indicators — [D|E|T|TE] format
   const meta   = buildTileMeta(entry);
-  const indStr = meta.indicators
+  const indFormatted = '[' + meta.indicators
     .map(ind => ind.active ? ind.key : `<span class="meta-dim">${ind.key}</span>`)
-    .join(' · ');
-  const metaStr = `${meta.label} · ${indStr}`;
+    .join('|') + ']';
+  const metaStr = `${meta.label} · ${indFormatted}`;
 
   const isSelected = selectedUids.has(String(entry.uid));
 
@@ -265,20 +266,23 @@ function buildTile(entry) {
   tile.dataset.label = entry.usageLabel !== 'Common' ? entry.usageLabel : '';
   tile.dataset.def   = entry.definition1;
 
-  // Left = category border, right = active status border
-  tile.style.cssText = `border-left:3.5px solid ${catColor};border-right:3.5px solid ${activeColor};border-top:1px solid var(--border);border-bottom:1px solid var(--border);`;
+  // Left border only — no right border
+  tile.style.cssText = `border-left: 3.5px solid ${catColor}; border-left-color: ${catColor};`;
 
   tile.innerHTML = `
     <div class="tile-inner">
       <div class="tile-body">
         <div class="tile-line1">
           <span class="tile-word${entry.isInvalid ? ' invalid' : ''}">${escHtml(entry.word)}${entry.isInvalid ? ' ⚠' : ''}</span>
+          ${showBookmark ? `<svg class="tile-bookmark" title="${bookmarkTitle}" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:5px;flex-shrink:0"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>` : ''}
         </div>
         <div class="tile-line2"><span class="tile-meta-text">${metaStr}</span></div>
       </div>
       <div class="tile-right">
-        ${showBookmark ? `<svg class="tile-bookmark" title="${bookmarkTitle}" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>` : ''}
-        <div class="tile-numid-chip${entry.isInvalid ? ' warn' : ''}">${escHtml(numidDisplay)}</div>
+        <div class="tile-top-right">
+          <div class="tile-status-dot" style="background:${activeColor}"></div>
+          <div class="tile-numid-chip${entry.isInvalid ? ' warn' : ''}">${escHtml(numidDisplay)}</div>
+        </div>
       </div>
     </div>`;
 
@@ -434,13 +438,12 @@ function renderWordList() {
   }
 
   entries.forEach(entry => {
-    const catColor    = CAT_COLORS[entry.category] || CAT_COLORS[1];
-    const activeColor = entry.active ? '#2ecc71' : '#cc3333';
+    const catColor     = CAT_COLORS[entry.category] || CAT_COLORS[1];
+    const activeColor  = entry.active ? '#2ecc71' : '#cc3333';
     const numidDisplay = entry.numid < 0 ? '−' + Math.abs(entry.numid) : String(entry.numid);
     const item = document.createElement('div');
     item.className = 'wl-item';
     item.style.borderLeft  = `3px solid ${catColor}`;
-    item.style.borderRight = `3px solid ${activeColor}`;
     item.innerHTML = `
       <div style="flex:1;min-width:0">
         <div class="wl-item-word">${escHtml(entry.word)}</div>
